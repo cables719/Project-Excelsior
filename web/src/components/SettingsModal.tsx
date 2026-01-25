@@ -1,0 +1,398 @@
+
+import React, { useState, useEffect } from 'react';
+import { UserProfile } from '@/lib/types';
+import { X, Save, Calculator } from 'lucide-react';
+
+interface SettingsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    currentProfile?: any;
+    onSave: () => void;
+}
+
+export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: SettingsModalProps) {
+    const [formData, setFormData] = useState<UserProfile>({});
+    const [isSaving, setIsSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState<'profile' | 'coach'>('profile');
+
+    // Load initial data
+    useEffect(() => {
+        if (isOpen && currentProfile) {
+            setFormData({
+                ...currentProfile,
+                coachAttributes: currentProfile.coachAttributes || { warmth: 0.5, intensity: 0.5, verbosity: 0.5 }
+            });
+        }
+    }, [isOpen, currentProfile]);
+
+    if (!isOpen) return null;
+
+    const handleChange = (field: keyof UserProfile, value: string | number) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            onSave(); // Trigger refresh in parent
+            onClose();
+        } catch (e) {
+            alert('Failed to save profile');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // --- Dynamic Calculations ---
+    // Mifflin-St Jeor Equation
+    const calculateStats = () => {
+        const weightKg = (Number(formData.goalWeight || 0)) * 0.453592; // Use goal weight for target BMR? Or current? Let's use Goal for planning.
+        // Actually, usually BMR is based on CURRENT weight to know maintenance. 
+        // But we don't have current weight here easily unless passed in.
+        // Let's assume the user enters their CURRENT weight for BMR calc, or we use the override.
+        // Wait, the plan said "Inputs: Age, Sex, Height, Goal Weight". 
+        // We should probably ask for "Current Weight" in this form if we want accuracy, OR grab it from context.
+        // For now, let's use Goal Weight as a proxy if Current is missing, but ideally we'd have a "Current Weight" input here too?
+        // Let's stick to the plan: Goal Weight.
+
+        // Let's add "Current Weight" to the form since it's cleaner than reading from the log.
+        const currentWeight = Number(formData['currentWeight'] || formData.goalWeight || 160);
+        const wKg = currentWeight * 0.453592;
+        const hCm = Number(formData.height || 175);
+        const age = Number(formData.age || 30);
+        const s = 5; // Male offset (+5), Female (-161)
+        const sexOffset = formData.sex === 'F' ? -161 : 5;
+
+        const bmr = (10 * wKg) + (6.25 * hCm) - (5 * age) + sexOffset;
+
+        const activityMult = Number(formData.activityLevel || 1.2);
+        const tdee = bmr * activityMult;
+
+        return { bmr: Math.round(bmr), tdee: Math.round(tdee) };
+    };
+
+    const stats = calculateStats();
+
+    // --- Render Helpers ---
+    const Slider = ({ label, value, onChange, minLabel, maxLabel }: { label: string, value: number, onChange: (v: number) => void, minLabel: string, maxLabel: string }) => (
+        <div className="space-y-2">
+            <div className="flex justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                <span>{label}</span>
+                <span className="text-zinc-500">{value < 0.4 ? minLabel : value > 0.6 ? maxLabel : 'Default'}</span>
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.5"
+                value={value}
+                onChange={e => onChange(Number(e.target.value))}
+                className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            />
+        </div>
+    );
+
+    const PERSONAS = [
+        { id: 'clara', name: 'Clara', desc: 'Warm, flirty, supportive.', img: '/avatars/clara.png' },
+        { id: 'atlas', name: 'Atlas', desc: 'Stoic, disciplined, steady.', img: '/avatars/atlas.png' },
+        { id: 'cole', name: 'Cole', desc: 'Cocky, intense, demanding.', img: '/avatars/cole.png' },
+        { id: 'ember', name: 'Ember', desc: 'Calm, reassuring, safe.', img: '/avatars/ember.png' },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#09090b] border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+
+                {/* Header with Tabs */}
+                <div className="flex flex-col border-b border-zinc-800">
+                    <div className="flex justify-between items-center p-6 pb-2">
+                        <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                            <Calculator size={18} className="text-purple-500" />
+                            Settings
+                        </h2>
+                        <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="flex px-6 gap-6">
+                        <button
+                            onClick={() => setActiveTab('profile')}
+                            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'profile' ? 'text-white border-purple-500' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
+                        >
+                            Profile
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('coach')}
+                            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'coach' ? 'text-white border-purple-500' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
+                        >
+                            Coach Lab
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+
+                    {activeTab === 'profile' ? (
+                        <>
+                            {/* Identity Section */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Identity</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Name</label>
+                                        <input
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
+                                            value={formData.name || ''}
+                                            onChange={e => handleChange('name', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Age</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
+                                            value={formData.age || ''}
+                                            onChange={e => handleChange('age', Number(e.target.value))}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Sex</label>
+                                        <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                                            <button
+                                                onClick={() => handleChange('sex', 'M')}
+                                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.sex === 'M' || !formData.sex ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
+                                            >M</button>
+                                            <button
+                                                onClick={() => handleChange('sex', 'F')}
+                                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.sex === 'F' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
+                                            >F</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Height</label>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-3 pr-6 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
+                                                    value={Math.floor(Number(formData.height || 0) / 30.48) || ''}
+                                                    onChange={e => {
+                                                        const ft = Number(e.target.value);
+                                                        const inches = Math.round((Number(formData.height || 0) / 2.54) % 12);
+                                                        const totalCm = Math.round((ft * 30.48) + (inches * 2.54));
+                                                        handleChange('height', totalCm);
+                                                    }}
+                                                    placeholder="5"
+                                                />
+                                                <span className="absolute right-2 top-2 text-[10px] text-zinc-500 font-bold">ft</span>
+                                            </div>
+                                            <div className="relative flex-1">
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-3 pr-6 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
+                                                    value={Math.round((Number(formData.height || 0) / 2.54) % 12) || ''}
+                                                    onChange={e => {
+                                                        const inches = Number(e.target.value);
+                                                        const ft = Math.floor(Number(formData.height || 0) / 30.48);
+                                                        const totalCm = Math.round((ft * 30.48) + (inches * 2.54));
+                                                        handleChange('height', totalCm);
+                                                    }}
+                                                    placeholder="10"
+                                                />
+                                                <span className="absolute right-2 top-2 text-[10px] text-zinc-500 font-bold">in</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Goals Section */}
+                            <div className="space-y-4 pt-4 border-t border-zinc-800/50">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Stats & Targets</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Left Column: Base Stats */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Base Weight (lbs)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
+                                                value={formData.currentWeight || ''}
+                                                onChange={e => handleChange('currentWeight', Number(e.target.value))}
+                                                placeholder="For BMR"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Base Body Fat %</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
+                                                value={formData.currentBodyFat || ''}
+                                                onChange={e => handleChange('currentBodyFat', Number(e.target.value))}
+                                                placeholder="Est."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Right Column: Goals */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Goal Weight (lbs)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
+                                                value={formData.goalWeight || ''}
+                                                onChange={e => handleChange('goalWeight', Number(e.target.value))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Goal Body Fat %</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
+                                                value={formData.goalBodyFat || ''}
+                                                onChange={e => handleChange('goalBodyFat', Number(e.target.value))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Activity & Metabolism */}
+                            <div className="space-y-4 pt-4 border-t border-zinc-800/50">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Metabolism Engine</h3>
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Activity Level</label>
+                                        <select
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none appearance-none"
+                                            value={formData.activityLevel || 1.2}
+                                            onChange={e => handleChange('activityLevel', Number(e.target.value))}
+                                        >
+                                            <option value={1.2}>Sedentary (Desk Job)</option>
+                                            <option value={1.375}>Lightly Active (1-3 days)</option>
+                                            <option value={1.55}>Moderately Active (3-5 days)</option>
+                                            <option value={1.725}>Very Active (6-7 days)</option>
+                                            <option value={1.9}>Extra Active (Physical Job)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* BMR / TDEE Display */}
+                                    <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800/50 grid grid-cols-2 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">BMR</div>
+                                            <div className="text-xl font-bold text-zinc-300">{stats.bmr}</div>
+                                            <div className="text-[9px] text-zinc-600">Coma Calories</div>
+                                        </div>
+                                        <div className="text-center relative">
+                                            <div className="text-[10px] text-blue-500 uppercase tracking-widest font-bold">TDEE</div>
+                                            <div className="text-xl font-bold text-white">{stats.tdee}</div>
+                                            <div className="text-[9px] text-zinc-500">Maintenance</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Overrides */}
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-500 mb-1">BMR Override</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
+                                                value={formData.bmrOverride || ''}
+                                                onChange={e => handleChange('bmrOverride', Number(e.target.value))}
+                                                placeholder={`Auto: ${stats.bmr}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-500 mb-1">Protein Target (g)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
+                                                value={formData.proteinOverride || ''}
+                                                onChange={e => handleChange('proteinOverride', Number(e.target.value))}
+                                                placeholder="180"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                            {/* Coach Selection */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Select Your Guide</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {PERSONAS.map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => handleChange('coachMode', p.id)}
+                                            className={`relative group p-1.5 rounded-xl border text-left transition-all ${formData.coachMode === p.id
+                                                ? 'bg-zinc-800 border-purple-500 shadow-lg shadow-purple-900/20'
+                                                : 'bg-black/20 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <img src={p.img} alt={p.name} className="w-12 h-12 rounded-lg object-cover bg-zinc-900" />
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-bold text-white truncate">{p.name}</div>
+                                                    <div className="text-[9px] text-zinc-500 leading-tight line-clamp-2">{p.desc}</div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Tuning Sliders */}
+                            <div className="space-y-6 pt-2">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Personality Tuning</h3>
+                                <div className="space-y-5 bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                    <Slider
+                                        label="Warmth"
+                                        minLabel="Clinical"
+                                        maxLabel="Affectionate"
+                                        value={formData.coachAttributes?.warmth ?? 0.5}
+                                        onChange={v => setFormData(prev => ({ ...prev, coachAttributes: { ...prev.coachAttributes, warmth: v } as any }))}
+                                    />
+                                    <Slider
+                                        label="Intensity"
+                                        minLabel="Gentle"
+                                        maxLabel="Hardcore"
+                                        value={formData.coachAttributes?.intensity ?? 0.5}
+                                        onChange={v => setFormData(prev => ({ ...prev, coachAttributes: { ...prev.coachAttributes, intensity: v } as any }))}
+                                    />
+                                    <Slider
+                                        label="Verbosity"
+                                        minLabel="Concise"
+                                        maxLabel="Verbose"
+                                        value={formData.coachAttributes?.verbosity ?? 0.5}
+                                        onChange={v => setFormData(prev => ({ ...prev, coachAttributes: { ...prev.coachAttributes, verbosity: v } as any }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-zinc-800 bg-zinc-900/30 rounded-b-2xl">
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="w-full flex items-center justify-center gap-2 bg-white text-black font-bold py-3 rounded-xl hover:bg-zinc-200 transition-colors"
+                    >
+                        {isSaving ? <span className="animate-pulse">Saving Profile...</span> : <><Save size={18} /> Save Changes</>}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
