@@ -53,7 +53,7 @@ export function ChatInterface({
                                 : 'py-2 bg-zinc-900/40 text-zinc-300 rounded-2xl rounded-tl-sm'
                                 }`}>
                                 {m.role === 'assistant' ? (
-                                    <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0">
+                                    <div className="prose prose-invert prose-sm max-w-none prose-p:my-4 prose-headings:my-3 prose-ul:my-4 prose-li:my-2">
                                         <ReactMarkdown
                                             components={{
                                                 ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1" {...props} />,
