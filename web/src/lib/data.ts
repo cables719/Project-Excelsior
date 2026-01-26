@@ -2,27 +2,44 @@ import { google } from 'googleapis';
 import { DataContext, WeighIn, Lift, Cardio, Nutrition, UserProfile } from './types';
 export type { DataContext, WeighIn, Lift, Cardio, Nutrition, UserProfile };
 import { DataCache } from './cache';
+import { getUserConfig } from './user-store';
 
 // Config
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 // Auth Helper
-export function getAuth(sheetId?: string) {
+export async function getAuth(sheetIdOverride?: string) {
     const email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
     const key = process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    // const sheetId = process.env.GOOGLE_SHEET_ID; // Removed default fallback here, passed as arg or checked later
 
-    if (!email || !key) {
-        throw new Error('Missing Google Sheets credentials in .env.local');
+    // Resolve Sheet ID: Override -> Env Var -> Cookie (via getUserConfig)
+    let sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+
+    if (!sheetId) {
+        // Try getting from cookie/store
+        const config = await getUserConfig('placeholder-email'); // Cookie check ignores email
+        sheetId = config?.sheetId;
     }
 
-    return new google.auth.GoogleAuth({
+    if (!email || !key || !sheetId) {
+        // We don't throw for missing SheetID yet because some callers might not need it immediately,
+        // but for getAuth we usually need it to be defined if we wanted to scope it? 
+        // Actually GoogleAuth is mostly about creds. 
+        // But the Caller usually needs the ID.
+        if (!email || !key) throw new Error('Missing Google Sheets credentials in .env.local');
+        // We allow returning auth client even if sheetId is missing, 
+        // but the operations will fail if they don't have an ID.
+    }
+
+    const auth = new google.auth.GoogleAuth({
         credentials: {
             client_email: email,
             private_key: key,
         },
         scopes: SCOPES,
     });
+
+    return { auth, sheetId }; // Return both so caller knows the resolved ID
 }
 
 // Helper to parse the User KV tab
@@ -64,9 +81,9 @@ async function fetchUserProfile(sheets: any, sheetId: string): Promise<UserProfi
 }
 
 export async function updateUserProfile(profile: UserProfile, sheetIdOverride?: string): Promise<void> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-    const auth = getAuth(sheetId);
+
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Convert object to rows [Key, Value]
@@ -95,17 +112,17 @@ export async function updateUserProfile(profile: UserProfile, sheetIdOverride?: 
 }
 
 export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string): Promise<DataContext> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    // 1. Resolve Auth & ID
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    // 1. Try Cache
+    // 2. Try Cache
     const cached = DataCache.get(sheetId);
     if (cached) {
         // console.log('[Data] Serving from Cache');
         return cached;
     }
 
-    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     // ... Fetch Logic ...
@@ -236,10 +253,9 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string):
 }
 
 export async function appendWeighIn(data: WeighIn, sheetIdOverride?: string): Promise<void> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const values = [
@@ -257,10 +273,9 @@ export async function appendWeighIn(data: WeighIn, sheetIdOverride?: string): Pr
 }
 
 export async function appendLift(data: Lift, sheetIdOverride?: string): Promise<void> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const vol = (Number(data.sets) * Number(data.reps) * Number(data.weight)).toString();
@@ -281,10 +296,9 @@ export async function appendLift(data: Lift, sheetIdOverride?: string): Promise<
 }
 
 export async function appendCardio(data: Cardio, sheetIdOverride?: string): Promise<void> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Format: Date, Activity, Duration, Distance, Elevation (Skip), HeartRate, Notes
@@ -305,10 +319,9 @@ export async function appendCardio(data: Cardio, sheetIdOverride?: string): Prom
 
 
 export async function appendNutrition(data: Nutrition, sheetIdOverride?: string): Promise<void> {
-    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const values = [
