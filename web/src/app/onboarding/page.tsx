@@ -75,7 +75,7 @@ export default function OnboardingPage() {
                                 FitSync uses your own Google Sheet to store data. We've created a template to get you started correctly.
                             </p>
 
-                            <div className="bg-zinc-900/80 border border-zinc-700/50 rounded-xl p-6 mb-8 flex items-center justify-between group hover:border-purple-500/50 transition-colors cursor-pointer" onClick={() => window.open('https://docs.google.com/spreadsheets/d/1XyZ...PLACEHOLDER.../copy', '_blank')}>
+                            <div className="bg-zinc-900/80 border border-zinc-700/50 rounded-xl p-6 mb-8 flex items-center justify-between group hover:border-purple-500/50 transition-colors cursor-pointer" onClick={() => window.open('https://docs.google.com/spreadsheets/d/1hL4-f32IWDEdcC5clTciH8QSdmH1cDL7GAelzu1PLrc/copy', '_blank')}>
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-green-900/20 rounded-lg text-green-500">
                                         <Database size={24} />

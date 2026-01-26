@@ -37,7 +37,7 @@ export function ChatInterface({
                 <div className="max-w-4xl mx-auto space-y-10">
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center opacity-30 mt-32 space-y-4 animate-pulse">
-                            <img src="/logo.png" alt="Logo" className="w-48 h-48 opacity-100" />
+                            <img src="/logo.png" alt="Logo" className="w-64 h-64 opacity-100 mt-8" />
                             <p className="font-light tracking-wide text-lg">SYSTEM READY</p>
                         </div>
                     )}
