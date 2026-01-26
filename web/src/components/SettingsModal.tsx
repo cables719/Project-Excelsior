@@ -377,15 +377,15 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                 <p className="text-xs text-zinc-400">Toggle modules to simplify your view.</p>
 
                                 <div className="space-y-3">
-                                    {/* Hide Cardio */}
+                                    {/* Hide Body Fat */}
                                     <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
-                                        <span className="text-sm font-bold text-white">Hide Cardio</span>
+                                        <span className="text-sm font-bold text-white">Hide Body Fat %</span>
                                         <input
                                             type="checkbox"
-                                            checked={formData.preferences?.hideCardio || false}
+                                            checked={formData.preferences?.hideBodyFat || false}
                                             onChange={e => setFormData(prev => ({
                                                 ...prev,
-                                                preferences: { ...prev.preferences, hideCardio: e.target.checked }
+                                                preferences: { ...prev.preferences, hideBodyFat: e.target.checked }
                                             }))}
                                             className="accent-purple-500 w-4 h-4"
                                         />
@@ -405,15 +405,15 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                         />
                                     </label>
 
-                                    {/* Hide Body Fat */}
+                                    {/* Hide Cardio */}
                                     <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
-                                        <span className="text-sm font-bold text-white">Hide Body Fat %</span>
+                                        <span className="text-sm font-bold text-white">Hide Cardio</span>
                                         <input
                                             type="checkbox"
-                                            checked={formData.preferences?.hideBodyFat || false}
+                                            checked={formData.preferences?.hideCardio || false}
                                             onChange={e => setFormData(prev => ({
                                                 ...prev,
-                                                preferences: { ...prev.preferences, hideBodyFat: e.target.checked }
+                                                preferences: { ...prev.preferences, hideCardio: e.target.checked }
                                             }))}
                                             className="accent-purple-500 w-4 h-4"
                                         />
