@@ -17,10 +17,12 @@ export async function POST(req: Request) {
             return new Response('Invalid Sheet ID', { status: 400 });
         }
 
-        await saveUserConfig(session.user.email, { sheetId });
-
+        // Return response with Set-Cookie header
         return new Response(JSON.stringify({ success: true }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'Set-Cookie': `fitsync_sheet_id=${sheetId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=315360000` // 10 years
+            }
         });
     } catch (error) {
         console.error('Setup Error:', error);

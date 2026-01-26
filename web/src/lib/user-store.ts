@@ -1,6 +1,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { cookies } from 'next/headers';
 
 const STORE_PATH = path.join(process.cwd(), 'src', 'lib', 'users.json');
 
@@ -32,7 +33,18 @@ export async function getUserConfig(email: string): Promise<UserConfig | null> {
         return { sheetId: process.env.GOOGLE_SHEET_ID };
     }
 
-    // 2. Fallback: Local Filesystem (Dev Mode)
+    // 2. Priority: Cookie (User Session)
+    try {
+        const cookieStore = await cookies();
+        const sheetId = cookieStore.get('fitsync_sheet_id')?.value;
+        if (sheetId) {
+            return { sheetId };
+        }
+    } catch (e) {
+        // Ignore errors (e.g. outside request context)
+    }
+
+    // 3. Fallback: Local Filesystem (Dev Mode)
     try {
         await ensureStore();
         const data = await fs.readFile(STORE_PATH, 'utf-8');
