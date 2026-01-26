@@ -73,5 +73,12 @@ export interface UserProfile {
     customCoachName?: string;
     customCoachAvatar?: string;
     customSystemPrompt?: string;
+    // New Preferences
+    preferences?: {
+        hideCardio?: boolean;
+        hideLifts?: boolean;
+        hideBodyFat?: boolean;
+        hideNutrition?: boolean;
+    };
     [key: string]: unknown;
 }

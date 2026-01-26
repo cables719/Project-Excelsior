@@ -14,7 +14,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: SettingsModalProps) {
     const [formData, setFormData] = useState<UserProfile>({});
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'profile' | 'coach'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'prefs' | 'coach'>('profile');
 
     // Load initial data
     useEffect(() => {
@@ -124,6 +124,12 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                             className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'profile' ? 'text-white border-purple-500' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
                         >
                             Profile
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('prefs')}
+                            className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'prefs' ? 'text-white border-purple-500' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
+                        >
+                            Layout
                         </button>
                         <button
                             onClick={() => setActiveTab('coach')}
@@ -364,6 +370,71 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                 </div>
                             </div>
                         </>
+                    ) : activeTab === 'prefs' ? (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Dashboard Modules</h3>
+                                <p className="text-xs text-zinc-400">Toggle modules to simplify your view.</p>
+
+                                <div className="space-y-3">
+                                    {/* Hide Cardio */}
+                                    <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                        <span className="text-sm font-bold text-white">Hide Cardio</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.hideCardio || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, hideCardio: e.target.checked }
+                                            }))}
+                                            className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+
+                                    {/* Hide Lifts */}
+                                    <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                        <span className="text-sm font-bold text-white">Hide Lifting</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.hideLifts || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, hideLifts: e.target.checked }
+                                            }))}
+                                            className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+
+                                    {/* Hide Body Fat */}
+                                    <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                        <span className="text-sm font-bold text-white">Hide Body Fat %</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.hideBodyFat || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, hideBodyFat: e.target.checked }
+                                            }))}
+                                            className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+
+                                    {/* Hide Nutrition */}
+                                    <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                        <span className="text-sm font-bold text-white">Hide Nutrition</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.hideNutrition || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, hideNutrition: e.target.checked }
+                                            }))}
+                                            className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                             {/* Coach Selection */}

@@ -389,7 +389,9 @@ export default function Page() {
         // activityBurn={activityBurn + dailyBudget} took the hack approach. 
         // But 'activityBurn' prop in Dashboard might just be displayed as "Activity".
         // Let's check Dashboard quickly.
+        // Let's check Dashboard quickly.
         filteredActivity={filteredActivity}
+        preferences={dataContext?.userProfile?.preferences}
       />
     </div>
   );

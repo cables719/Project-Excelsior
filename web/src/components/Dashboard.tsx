@@ -42,13 +42,19 @@ interface DashboardProps {
     // Recent Activity
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filteredActivity: any[];
+    preferences?: {
+        hideCardio?: boolean;
+        hideLifts?: boolean;
+        hideBodyFat?: boolean;
+        hideNutrition?: boolean;
+    };
 }
 
 export function Dashboard({
     currentWeight, currentBF, avgWeight, avgBF, graphData,
     logType, setLogType, weighInForm, setWeighInForm, liftForm, setLiftForm, cardioForm, setCardioForm,
     foodInput, setFoodInput, foodAnalysis, setFoodAnalysis, isAnalyzing, handleAnalyzeFood, isSubmitting, handleLogSubmit,
-    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity
+    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity, preferences
 }: DashboardProps) {
 
     return (
@@ -70,11 +76,14 @@ export function Dashboard({
                             value={currentWeight !== '--' ? `${currentWeight} lbs` : '--'}
                             subtext={avgWeight ? `${avgWeight.toFixed(1)} lbs avg` : undefined}
                         />
-                        <StatCard
-                            label="Body Fat"
-                            value={currentBF !== '--' ? `${currentBF}%` : '--'}
-                            subtext={avgBF ? `${avgBF.toFixed(1)}% avg` : undefined}
-                        />
+
+                        {!preferences?.hideBodyFat && (
+                            <StatCard
+                                label="Body Fat"
+                                value={currentBF !== '--' ? `${currentBF}%` : '--'}
+                                subtext={avgBF ? `${avgBF.toFixed(1)}% avg` : undefined}
+                            />
+                        )}
                     </div>
 
                     {/* GRAPH 1: Weight */}
@@ -93,19 +102,21 @@ export function Dashboard({
                     </div>
 
                     {/* GRAPH 2: Body Fat */}
-                    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 h-64 relative">
-                        <div className="absolute top-4 left-6 text-[10px] font-bold text-zinc-500 uppercase">Body Fat % Trend</div>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={graphData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                                <CartesianGrid vertical={false} stroke="#27272a" />
-                                <XAxis dataKey="date" hide />
-                                <YAxis domain={['auto', 'auto']} orientation="left" tick={{ fill: '#52525b', fontSize: 10 }} tickLine={false} axisLine={false} />
-                                <Tooltip content={<CustomTooltip unit="%" />} />
-                                <Line type="monotone" dataKey="bodyFatAvg" stroke="#10b981" strokeWidth={3} dot={false} strokeOpacity={0.8} />
-                                <Scatter dataKey="bodyFat" fill="#10b981" fillOpacity={0.3} />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {!preferences?.hideBodyFat && (
+                        <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 h-64 relative">
+                            <div className="absolute top-4 left-6 text-[10px] font-bold text-zinc-500 uppercase">Body Fat % Trend</div>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={graphData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                                    <CartesianGrid vertical={false} stroke="#27272a" />
+                                    <XAxis dataKey="date" hide />
+                                    <YAxis domain={['auto', 'auto']} orientation="left" tick={{ fill: '#52525b', fontSize: 10 }} tickLine={false} axisLine={false} />
+                                    <Tooltip content={<CustomTooltip unit="%" />} />
+                                    <Line type="monotone" dataKey="bodyFatAvg" stroke="#10b981" strokeWidth={3} dot={false} strokeOpacity={0.8} />
+                                    <Scatter dataKey="bodyFat" fill="#10b981" fillOpacity={0.3} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                 </div>
 
                 {/* 2. Logging Form (Integrated) */}
@@ -123,6 +134,7 @@ export function Dashboard({
                     proteinIn={proteinIn}
                     proteinTarget={proteinTarget}
                     activityBurn={activityBurn}
+                    preferences={preferences}
                 />
 
                 {/* 3. Recent Activity (Filtered by Tab) */}

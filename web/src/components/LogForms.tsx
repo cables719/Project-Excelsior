@@ -23,6 +23,12 @@ interface LogFormsProps {
     proteinIn: number;
     proteinTarget: number;
     activityBurn: number;
+    preferences?: {
+        hideCardio?: boolean;
+        hideLifts?: boolean;
+        hideBodyFat?: boolean;
+        hideNutrition?: boolean;
+    };
 }
 
 export function LogForms({
@@ -34,7 +40,8 @@ export function LogForms({
     foodAnalysis, setFoodAnalysis,
     isAnalyzing, handleAnalyzeFood,
     isSubmitting, handleLogSubmit,
-    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn
+    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn,
+    preferences
 }: LogFormsProps) {
 
     return (
@@ -50,15 +57,21 @@ export function LogForms({
                 </div>
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
                     <button type="button" onClick={() => setLogType('weigh-in')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'weigh-in' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>BODY</button>
-                    <button type="button" onClick={() => setLogType('lift')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
-                    <button type="button" onClick={() => setLogType('cardio')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
-                    <button type="button" onClick={() => setLogType('nutrition')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
+                    {!preferences?.hideLifts && (
+                        <button type="button" onClick={() => setLogType('lift')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
+                    )}
+                    {!preferences?.hideCardio && (
+                        <button type="button" onClick={() => setLogType('cardio')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
+                    )}
+                    {!preferences?.hideNutrition && (
+                        <button type="button" onClick={() => setLogType('nutrition')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
+                    )}
                 </div>
             </div>
 
             <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-6">
                 <form onSubmit={handleLogSubmit} className="space-y-4">
-                    {logType === 'weigh-in' ? (
+                    {logType === 'weigh-in' && (
                         <>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -71,16 +84,18 @@ export function LogForms({
                                         placeholder="0.0"
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-[10px] text-zinc-600 font-bold uppercase block mb-1">Fat %</label>
-                                    <input
-                                        type="number" step="0.1"
-                                        value={weighInForm.bodyFat}
-                                        onChange={e => setWeighInForm({ ...weighInForm, bodyFat: e.target.value })}
-                                        className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-indigo-500/50 focus:outline-none transition-colors"
-                                        placeholder="0.0"
-                                    />
-                                </div>
+                                {!preferences?.hideBodyFat && (
+                                    <div>
+                                        <label className="text-[10px] text-zinc-600 font-bold uppercase block mb-1">Fat %</label>
+                                        <input
+                                            type="number" step="0.1"
+                                            value={weighInForm.bodyFat}
+                                            onChange={e => setWeighInForm({ ...weighInForm, bodyFat: e.target.value })}
+                                            className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-indigo-500/50 focus:outline-none transition-colors"
+                                            placeholder="0.0"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <input
@@ -91,7 +106,9 @@ export function LogForms({
                                 />
                             </div>
                         </>
-                    ) : logType === 'lift' ? (
+                    )}
+
+                    {logType === 'lift' && (
                         <>
                             <div>
                                 <input
@@ -108,7 +125,9 @@ export function LogForms({
                             </div>
                             <input value={liftForm.notes} onChange={e => setLiftForm({ ...liftForm, notes: e.target.value })} className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-emerald-500/50 focus:outline-none transition-all" placeholder="Notes..." />
                         </>
-                    ) : logType === 'cardio' ? (
+                    )}
+
+                    {logType === 'cardio' && (
                         <>
                             {/* CARDIO FORM */}
                             <div className="grid grid-cols-2 gap-4">
@@ -144,7 +163,7 @@ export function LogForms({
                             </div>
                             <input value={cardioForm.notes} onChange={e => setCardioForm({ ...cardioForm, notes: e.target.value })} className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-blue-500/50 focus:outline-none transition-all" placeholder="Notes..." />
                         </>
-                    ) : null}
+                    )}
 
                     {logType === 'nutrition' && (
                         <div className="space-y-4">
@@ -244,7 +263,7 @@ export function LogForms({
                         </button>
                     )}
                 </form>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
