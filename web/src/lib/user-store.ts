@@ -28,12 +28,7 @@ async function ensureStore() {
 }
 
 export async function getUserConfig(email: string): Promise<UserConfig | null> {
-    // 1. Priority: Environment Variable (Stateless / Single Tenant)
-    if (process.env.GOOGLE_SHEET_ID) {
-        return { sheetId: process.env.GOOGLE_SHEET_ID };
-    }
-
-    // 2. Priority: Cookie (User Session)
+    // 1. Priority: Cookie (User Session)
     try {
         const cookieStore = await cookies();
         const sheetId = cookieStore.get('fitsync_sheet_id')?.value;
@@ -44,7 +39,7 @@ export async function getUserConfig(email: string): Promise<UserConfig | null> {
         // Ignore errors (e.g. outside request context)
     }
 
-    // 3. Fallback: Local Filesystem (Dev Mode)
+    // 2. Fallback: Local Filesystem (Dev Mode - or remove if not needed)
     try {
         await ensureStore();
         const data = await fs.readFile(STORE_PATH, 'utf-8');
