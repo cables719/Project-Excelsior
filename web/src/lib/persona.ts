@@ -136,11 +136,16 @@ export function getClaraSystemPrompt(context: DataContext | null, clientDate?: s
     const profile = context?.userProfile || {};
     // Select Persona
     const mode = (profile.coachMode || 'clara') as keyof typeof COACH_PERSONAS;
-    const basePrompt = COACH_PERSONAS[mode]?.prompt || COACH_PERSONAS['clara'].prompt;
+    // Allow custom prompt override
+    const hasCustomPrompt = profile.customSystemPrompt && profile.customSystemPrompt.trim().length > 0;
+    const basePrompt = hasCustomPrompt
+        ? profile.customSystemPrompt
+        : (COACH_PERSONAS[mode]?.prompt || COACH_PERSONAS['clara'].prompt);
 
-    // Apply Attribute Modifiers
+    // Apply Attribute Modifiers (ONLY if using default persona)
+    // If user writes a custom prompt, we assume they want total control.
     let modifiers = "";
-    if (profile.coachAttributes) {
+    if (profile.coachAttributes && !hasCustomPrompt) {
         const { warmth, intensity, verbosity } = profile.coachAttributes;
 
         // Intensity (Low/Normal/High)

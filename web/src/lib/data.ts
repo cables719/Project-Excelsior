@@ -7,12 +7,12 @@ import { DataCache } from './cache';
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 // Auth Helper
-export function getAuth() {
+export function getAuth(sheetId?: string) {
     const email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
     const key = process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+    // const sheetId = process.env.GOOGLE_SHEET_ID; // Removed default fallback here, passed as arg or checked later
 
-    if (!email || !key || !sheetId) {
+    if (!email || !key) {
         throw new Error('Missing Google Sheets credentials in .env.local');
     }
 
@@ -46,7 +46,7 @@ async function fetchUserProfile(sheets: any, sheetId: string): Promise<UserProfi
                     try {
                         profile[key] = JSON.parse(val);
                         return;
-                    } catch (e) {
+                    } catch {
                         // Not JSON, fall through
                     }
                 }
@@ -63,10 +63,10 @@ async function fetchUserProfile(sheets: any, sheetId: string): Promise<UserProfi
     }
 }
 
-export async function updateUserProfile(profile: UserProfile): Promise<void> {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+export async function updateUserProfile(profile: UserProfile, sheetIdOverride?: string): Promise<void> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Convert object to rows [Key, Value]
@@ -77,8 +77,13 @@ export async function updateUserProfile(profile: UserProfile): Promise<void> {
         return [k, String(v)];
     });
 
-    // Clear existing and write new
-    // We'll use 'update' (overwrite) starting at A1
+    // Clear existing data first to prevent "ghost rows" (old keys persisting)
+    await sheets.spreadsheets.values.clear({
+        spreadsheetId: sheetId,
+        range: 'User!A:B',
+    });
+
+    // Write new data
     await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
         range: 'User!A1',
@@ -86,21 +91,21 @@ export async function updateUserProfile(profile: UserProfile): Promise<void> {
         requestBody: { values },
     });
 
-    DataCache.clear();
+    DataCache.clear(sheetId);
 }
 
-export async function fetchContext(daysToFetch = 365): Promise<DataContext> {
+export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string): Promise<DataContext> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
+    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
+
     // 1. Try Cache
-    const cached = DataCache.get();
+    const cached = DataCache.get(sheetId);
     if (cached) {
-        console.log('[Data] Serving from Cache');
+        // console.log('[Data] Serving from Cache');
         return cached;
     }
 
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     // ... Fetch Logic ...
@@ -226,15 +231,15 @@ export async function fetchContext(daysToFetch = 365): Promise<DataContext> {
         formattedString,
     };
 
-    DataCache.set(result);
+    DataCache.set(sheetId, result);
     return result;
 }
 
-export async function appendWeighIn(data: WeighIn): Promise<void> {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+export async function appendWeighIn(data: WeighIn, sheetIdOverride?: string): Promise<void> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const values = [
@@ -248,14 +253,14 @@ export async function appendWeighIn(data: WeighIn): Promise<void> {
         requestBody: { values },
     });
 
-    DataCache.clear();
+    DataCache.clear(sheetId);
 }
 
-export async function appendLift(data: Lift): Promise<void> {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+export async function appendLift(data: Lift, sheetIdOverride?: string): Promise<void> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const vol = (Number(data.sets) * Number(data.reps) * Number(data.weight)).toString();
@@ -272,14 +277,14 @@ export async function appendLift(data: Lift): Promise<void> {
         requestBody: { values },
     });
 
-    DataCache.clear();
+    DataCache.clear(sheetId);
 }
 
-export async function appendCardio(data: Cardio): Promise<void> {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+export async function appendCardio(data: Cardio, sheetIdOverride?: string): Promise<void> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Format: Date, Activity, Duration, Distance, Elevation (Skip), HeartRate, Notes
@@ -294,16 +299,16 @@ export async function appendCardio(data: Cardio): Promise<void> {
         requestBody: { values },
     });
 
-    DataCache.clear();
+    DataCache.clear(sheetId);
 }
 
 
 
-export async function appendNutrition(data: Nutrition): Promise<void> {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
+export async function appendNutrition(data: Nutrition, sheetIdOverride?: string): Promise<void> {
+    const sheetId = sheetIdOverride || process.env.GOOGLE_SHEET_ID;
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
-    const auth = getAuth();
+    const auth = getAuth(sheetId);
     const sheets = google.sheets({ version: 'v4', auth });
 
     const values = [
@@ -317,5 +322,5 @@ export async function appendNutrition(data: Nutrition): Promise<void> {
         requestBody: { values },
     });
 
-    DataCache.clear();
+    DataCache.clear(sheetId);
 }

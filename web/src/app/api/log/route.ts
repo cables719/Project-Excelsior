@@ -1,31 +1,34 @@
-import { NextResponse } from 'next/server';
-import { appendWeighIn, appendLift, appendCardio, appendNutrition } from '@/lib/data';
+
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { appendWeighIn, appendLift, appendCardio, appendNutrition } from "@/lib/data";
+import { getUserConfig } from "@/lib/user-store";
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user?.email) {
+            return new Response('Unauthorized', { status: 401 });
+        }
+
+        const config = await getUserConfig(session.user.email);
+        if (!config || !config.sheetId) {
+            return new Response('Setup Required', { status: 428 });
+        }
+
         const body = await req.json();
         const { type, data } = body;
 
-        if (!type || !data) {
-            return NextResponse.json({ error: 'Missing type or data' }, { status: 400 });
-        }
+        if (type === 'weigh-in') await appendWeighIn(data, config.sheetId);
+        if (type === 'lift') await appendLift(data, config.sheetId);
+        if (type === 'cardio') await appendCardio(data, config.sheetId);
+        if (type === 'nutrition') await appendNutrition(data, config.sheetId);
 
-        if (type === 'weigh-in') {
-            await appendWeighIn(data);
-        } else if (type === 'lift') {
-            await appendLift(data);
-        } else if (type === 'cardio') {
-            await appendCardio(data);
-        } else if (type === 'nutrition') {
-            await appendNutrition(data);
-        } else {
-            return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
-        }
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Log error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to log data';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (e) {
+        console.error(e);
+        return new Response('Error logging data', { status: 500 });
     }
 }

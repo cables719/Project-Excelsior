@@ -68,5 +68,10 @@ export interface UserProfile {
     bmrOverride?: number;
     proteinOverride?: number;
     otherGoals?: string;
+    // Customization
+    userAvatar?: string;
+    customCoachName?: string;
+    customCoachAvatar?: string;
+    customSystemPrompt?: string;
     [key: string]: unknown;
 }

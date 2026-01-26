@@ -32,8 +32,20 @@ export default function Page() {
   // --- Data Fetching ---
   const refreshData = () => {
     fetch('/api/data')
-      .then(res => res.json())
-      .then(setDataContext)
+      .then(async res => {
+        if (res.status === 428) {
+          window.location.href = '/onboarding';
+          return null;
+        }
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data) setDataContext(data);
+      })
       .catch(console.error);
   };
 
@@ -82,6 +94,7 @@ export default function Page() {
   })();
 
   const dailyBudget = metrics.tdee;
+  const proteinTarget = profile?.proteinOverride || Math.round((Number(profile?.goalWeight || profile?.currentWeight || 150)) * 1.0); // Default 1g/lb
 
   // --- Net Calories Logic ---
   const today = new Date();
@@ -111,7 +124,6 @@ export default function Page() {
   const dailyLifts = dataContext?.lifts.filter(l => isToday(l.date)) || [];
 
   const caloriesIn = dailyNutrition.reduce((acc, n) => acc + (parseInt(n.calories) || 0), 0);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const proteinIn = dailyNutrition.reduce((acc, n) => acc + (parseInt(n.protein) || 0), 0);
 
   const cardioBurn = dailyCardio.reduce((acc, c) => {
@@ -124,10 +136,10 @@ export default function Page() {
   const liftBurn = dailyLifts.length > 0 ? 250 : 0; // Flat estimate for lifting
   const activityBurn = cardioBurn + liftBurn;
 
-  // Net Calories = (TDEE + Activity) - Food
-  // Note: TDEE already includes "baseline" activity if user selected it. 
-  // But we stick to TDEE as the budget line.
-  const netCalories = (dailyBudget + activityBurn) - caloriesIn;
+  // Net Calories = TDEE - Food
+  // We DO NOT add activityBurn here because the user's "Activity Level" (TDEE modifier) 
+  // already accounts for their exercise regimen. Adding it again would be double counting.
+  const netCalories = dailyBudget - caloriesIn;
 
   // --- Graph Data Prep ---
   const graphData = dataContext?.weighIns.map((w, index, arr) => {
@@ -337,6 +349,8 @@ export default function Page() {
           handleChatSubmit={handleChatSubmit}
           bottomRef={bottomRef}
           coachMode={profile?.coachMode}
+          userAvatar={profile?.userAvatar}
+          coachAvatar={profile?.customCoachAvatar}
         />
       </div>
 
@@ -359,6 +373,8 @@ export default function Page() {
 
         netCalories={netCalories}
         caloriesIn={caloriesIn}
+        proteinIn={proteinIn}
+        proteinTarget={proteinTarget}
         activityBurn={activityBurn} // We now rely on dailyBudget being the 'Target', so netCalories is calculated with it. 
         // Note: The Dashboard component might expect 'activityBurn' only. 
         // We pass 'activityBurn' + 0 here? 

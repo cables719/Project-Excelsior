@@ -20,6 +20,8 @@ interface LogFormsProps {
     handleLogSubmit: (e: React.FormEvent) => void;
     netCalories: number;
     caloriesIn: number;
+    proteinIn: number;
+    proteinTarget: number;
     activityBurn: number;
 }
 
@@ -32,7 +34,7 @@ export function LogForms({
     foodAnalysis, setFoodAnalysis,
     isAnalyzing, handleAnalyzeFood,
     isSubmitting, handleLogSubmit,
-    netCalories, caloriesIn, activityBurn
+    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn
 }: LogFormsProps) {
 
     return (
@@ -47,10 +49,10 @@ export function LogForms({
                     <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Entry Log</h2>
                 </div>
                 <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                    <button onClick={() => setLogType('weigh-in')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'weigh-in' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>BODY</button>
-                    <button onClick={() => setLogType('lift')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
-                    <button onClick={() => setLogType('cardio')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
-                    <button onClick={() => setLogType('nutrition')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
+                    <button type="button" onClick={() => setLogType('weigh-in')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'weigh-in' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>BODY</button>
+                    <button type="button" onClick={() => setLogType('lift')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
+                    <button type="button" onClick={() => setLogType('cardio')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
+                    <button type="button" onClick={() => setLogType('nutrition')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
                 </div>
             </div>
 
@@ -151,7 +153,7 @@ export function LogForms({
                                 <div>
                                     <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Daily Budget</div>
                                     <div className="text-xs text-zinc-400">
-                                        <span className="text-white font-bold">{netCalories + caloriesIn}</span> (TDEE + Activity)
+                                        <span className="text-white font-bold">{netCalories + caloriesIn}</span> (TDEE)
                                         <span className="mx-2">-</span>
                                         <span className="text-white font-bold">{caloriesIn}</span> (Eaten)
                                     </div>
@@ -161,6 +163,30 @@ export function LogForms({
                                         {netCalories >= 0 ? `${netCalories} left` : `${Math.abs(netCalories)} over`}
                                     </div>
                                     <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Net Remaining</div>
+                                </div>
+                            </div>
+
+                            {/* Protein Goal Card */}
+                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex justify-between items-center">
+                                <div>
+                                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Protein Goal</div>
+                                    <div className="text-xs text-zinc-400">
+                                        <span className={`font-bold ${proteinIn >= proteinTarget ? 'text-emerald-400' : 'text-zinc-200'}`}>{proteinIn}g</span>
+                                        <span className="mx-1 text-zinc-600">/</span>
+                                        <span className="text-zinc-500">{proteinTarget}g</span>
+                                    </div>
+                                    {/* Mini Progress Bar */}
+                                    <div className="w-24 h-1 bg-zinc-800 rounded-full mt-2 overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full ${proteinIn >= proteinTarget ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                            style={{ width: `${Math.min(100, (proteinIn / proteinTarget) * 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className={`text-xl font-bold ${proteinIn >= proteinTarget ? 'text-emerald-400' : 'text-amber-500'}`}>
+                                        {Math.round((proteinIn / proteinTarget) * 100)}%
+                                    </div>
                                 </div>
                             </div>
 

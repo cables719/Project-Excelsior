@@ -8,17 +8,17 @@ import { getRecentHistory, appendExchange } from '@/lib/memory';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-    console.log('[API] Chat request received');
-    const start = Date.now();
+    // console.log('[API] Chat request received');
+    // const start = Date.now();
     const { messages, clientDate } = await req.json();
 
     // 1. Fetch real-time data
     let contextString = '';
     let rawData: DataContext | null = null;
     try {
-        console.log('[API] Fetching context...');
+        // console.log('[API] Fetching context...');
         rawData = await fetchContext();
-        console.log(`[API] Context fetched in ${Date.now() - start}ms`);
+        // console.log(`[API] Context fetched in ${Date.now() - start}ms`);
         contextString = rawData.formattedString;
     } catch (error) {
         console.error('[API] Error fetching context:', error);
@@ -50,7 +50,6 @@ ${historyText}
             system: systemPrompt,
             messages,
             onFinish: ({ text }) => {
-                console.log(`[API] Stream finished. Length: ${text.length}`);
                 const lastUserMsg = messages[messages.length - 1];
                 if (lastUserMsg && lastUserMsg.role === 'user') {
                     void appendExchange(lastUserMsg.content, text);

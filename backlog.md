@@ -72,4 +72,26 @@
     - [x] **Anti-panic**: Logic to handle missing data gracefully.
     - [x] **Non-repetitive**: Instructions to use data implicitly.
 - [x] **Data Accuracy**: Add `currentWeight` to Settings Modal for accurate BMR.
-- [ ] **Coach Customizer**: Allow user to swap "Personalities" (e.g., Drill Sergeant vs. Cheerleader).
+- [x] **Coach Customizer**: Allow user to swap "Personalities" (e.g., Drill Sergeant vs. Cheerleader).
+    - [x] **Custom Builder**: Frontend UI to let users design their own Coach (Name, Avatar, Personality Traits).
+    - [x] **User Avatar**: Allow users to upload their own profile picture.
+    - [x] **Refinement**: Added "Reset Custom Coach" token clearing.
+    - [x] **Refinement**: Fixed TDEE Override Logic and labeling.
+    - [x] **Refinement**: Fixed "Ghost Prompt" persistence bug (Sheet Clearing).
+- [x] **Automated Persona Testing**: Script to "fuzz test" coach personalities (all slider combos) to ensure sanity.
+
+## 🧹 Phase 7: Pre-Production Clean & Polish
+**Status: UP NEXT**
+- [ ] **Tech Debt Audit**: Scanning for:
+    - [ ] `console.log` removal in production paths.
+    - [ ] Hardcoded strings / Magic numbers.
+    - [ ] Type safety loose ends (`any` types).
+    - [ ] Unused imports/files (e.g., old throw-away scripts).
+- [ ] **Codebase Slimming**: Removing deprecated endpoints or unused components.
+- [ ] **Security Prep**: Environmental variable audit.
+
+## 🔐 Phase 8: Production & Security
+**Status: PENDING**
+- [ ] **Privacy Protocols**: Research & implement data safety for multi-user support.
+- [ ] **Auth Strategy**: Google Auth / NextAuth implementation.
+- [ ] **Hosting**: Deploy final build.

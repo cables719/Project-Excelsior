@@ -1,36 +1,37 @@
 
 import { DataContext } from './types';
 
-// Simple in-memory cache
-// NOTE: In a serverless environment (Vercel/Cloud Run), this persists only for the lifetime of the warm instance.
-// This is acceptable: it reduces API calls significantly during a session, even if not perfect across all instances.
-
 interface CacheEntry {
     data: DataContext;
     timestamp: number;
 }
 
-let cache: CacheEntry | null = null;
+const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
 
 export const DataCache = {
-    get: (): DataContext | null => {
-        if (!cache) return null;
-        if (Date.now() - cache.timestamp > CACHE_TTL_MS) {
-            cache = null;
+    get: (key: string): DataContext | null => {
+        const entry = cache.get(key);
+        if (!entry) return null;
+        if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+            cache.delete(key);
             return null;
         }
-        return cache.data;
+        return entry.data;
     },
 
-    set: (data: DataContext) => {
-        cache = {
+    set: (key: string, data: DataContext) => {
+        cache.set(key, {
             data,
             timestamp: Date.now()
-        };
+        });
     },
 
-    clear: () => {
-        cache = null;
+    clear: (key: string) => {
+        cache.delete(key);
+    },
+
+    clearAll: () => {
+        cache.clear();
     }
 };

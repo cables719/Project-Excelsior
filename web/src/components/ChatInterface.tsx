@@ -13,6 +13,8 @@ interface ChatInterfaceProps {
     handleChatSubmit: (e: React.FormEvent) => void;
     bottomRef: React.RefObject<HTMLDivElement | null>;
     coachMode?: 'clara' | 'cole' | 'atlas' | 'ember';
+    userAvatar?: string;
+    coachAvatar?: string;
 }
 
 const AVATAR_MAP = {
@@ -23,7 +25,8 @@ const AVATAR_MAP = {
 };
 
 export function ChatInterface({
-    messages, input, setInput, isLoading, handleChatSubmit, bottomRef, coachMode = 'clara'
+    messages, input, setInput, isLoading, handleChatSubmit, bottomRef, coachMode = 'clara',
+    userAvatar, coachAvatar
 }: ChatInterfaceProps) {
     return (
         <div className="flex-1 flex flex-col relative min-w-[500px] min-h-0">
@@ -43,8 +46,8 @@ export function ChatInterface({
                             {/* Avatar */}
                             <div className="flex-shrink-0 mt-2">
                                 {m.role === 'assistant'
-                                    ? <AvatarImg src={AVATAR_MAP[coachMode] || AVATAR_MAP['clara']} fallbackIcon={Sparkles} ringColor="ring-purple-500/50" scaleClass="scale-125" />
-                                    : <AvatarImg src="/user.png" fallbackIcon={User} ringColor="ring-emerald-500/50" />
+                                    ? <AvatarImg src={coachAvatar || AVATAR_MAP[coachMode] || AVATAR_MAP['clara']} fallbackIcon={Sparkles} ringColor="ring-purple-500/50" scaleClass="scale-125" />
+                                    : <AvatarImg src={userAvatar || "/user.png"} fallbackIcon={User} ringColor="ring-emerald-500/50" />
                                 }
                             </div>
                             {/* Bubble */}
@@ -61,6 +64,7 @@ export function ChatInterface({
                                                 h1: ({ node, ...props }) => <h1 className="text-xl font-bold text-white mb-2" {...props} />,
                                                 h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-white mb-2" {...props} />,
                                                 h3: ({ node, ...props }) => <h3 className="text-base font-bold text-white mb-1" {...props} />,
+                                                p: ({ node, ...props }) => <p className="mb-4 leading-relaxed" {...props} />,
                                             }}
                                         >
                                             {m.content}

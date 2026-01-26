@@ -33,7 +33,10 @@ interface DashboardProps {
     isSubmitting: boolean;
     handleLogSubmit: (e: React.FormEvent) => void;
     netCalories: number;
+    // netCalories: number; // Removed duplicate
     caloriesIn: number;
+    proteinIn: number;
+    proteinTarget: number;
     activityBurn: number;
 
     // Recent Activity
@@ -45,7 +48,7 @@ export function Dashboard({
     currentWeight, currentBF, avgWeight, avgBF, graphData,
     logType, setLogType, weighInForm, setWeighInForm, liftForm, setLiftForm, cardioForm, setCardioForm,
     foodInput, setFoodInput, foodAnalysis, setFoodAnalysis, isAnalyzing, handleAnalyzeFood, isSubmitting, handleLogSubmit,
-    netCalories, caloriesIn, activityBurn, filteredActivity
+    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity
 }: DashboardProps) {
 
     return (
@@ -117,6 +120,8 @@ export function Dashboard({
                     isSubmitting={isSubmitting} handleLogSubmit={handleLogSubmit}
                     netCalories={netCalories}
                     caloriesIn={caloriesIn}
+                    proteinIn={proteinIn}
+                    proteinTarget={proteinTarget}
                     activityBurn={activityBurn}
                 />
 
@@ -204,8 +209,8 @@ export function Dashboard({
                                                     </td>
 
                                                     {/* NOTES COLUMN */}
-                                                    <td className="py-4 pr-4 pl-4 text-left w-full">
-                                                        <NoteTooltip text={item.notes} index={i} widthClass={item.type === 'weigh-in' ? 'max-w-[250px]' : item.type === 'nutrition' ? 'max-w-[200px]' : 'max-w-[130px]'} />
+                                                    <td className="py-4 pr-4 pl-4 text-left max-w-[150px]">
+                                                        <NoteTooltip text={item.notes} index={i} widthClass="w-full" />
                                                     </td>
                                                 </tr>
                                             </React.Fragment>
