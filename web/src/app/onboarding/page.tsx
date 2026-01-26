@@ -128,7 +128,7 @@ export default function OnboardingPage() {
                                 <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs text-purple-200 leading-relaxed">
                                     <span className="font-bold block mb-1">Important:</span>
                                     Ensure you've shared the sheet with our service account:<br />
-                                    <code className="bg-black/30 px-1 py-0.5 rounded mt-1 inline-block select-all">service-account@project-excelsior.iam.gserviceaccount.com</code>
+                                    <code className="bg-black/30 px-1 py-0.5 rounded mt-1 inline-block select-all">excelsior-bot-835@handy-geography-484804-q1.iam.gserviceaccount.com</code>
                                 </div>
                             </div>
 
