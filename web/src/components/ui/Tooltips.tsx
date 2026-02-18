@@ -45,7 +45,8 @@ export const NoteTooltip = ({ text, index, widthClass }: { text: string, index: 
 
             {/* Tooltip Popup */}
             {/* If top row, show below (top-full). Else show above (bottom-full) */}
-            <div className={`absolute ${isTopRow ? 'top-full mt-1' : 'bottom-full mb-1'} left-0 w-auto max-w-[350px] hidden group-hover/note:block z-50`}>
+            {/* Anchored right-0 to avoid overflow on right edge of screen */}
+            <div className={`absolute ${isTopRow ? 'top-full mt-1' : 'bottom-full mb-1'} right-0 w-auto max-w-[350px] hidden group-hover/note:block z-50`}>
                 <div className="bg-black/95 backdrop-blur-md border border-zinc-700 p-3 rounded-xl shadow-2xl text-xs text-zinc-200 leading-snug whitespace-normal break-words relative text-left">
                     {text}
                 </div>

@@ -7,12 +7,15 @@ interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    currentProfile?: any;
+    currentProfile: any;
     onSave: () => void;
+    hasHistory?: boolean;
 }
 
-export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHistory = false }: SettingsModalProps) {
     const [formData, setFormData] = useState<UserProfile>({});
+    const [showEaglesPeak, setShowEaglesPeak] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<'profile' | 'prefs' | 'coach'>('profile');
 
@@ -23,8 +26,21 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                 ...currentProfile,
                 coachAttributes: currentProfile.coachAttributes || { warmth: 0.5, intensity: 0.5, verbosity: 0.5 }
             });
+            // Load Local Prefs
+            setShowEaglesPeak(localStorage.getItem('show_eagles_peak') === 'true');
+
+            // Check for admin/superuser or existing profile preference
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === 'true') {
+                localStorage.setItem('is_admin', 'true');
+                setIsAdmin(true);
+            } else {
+                // Also allow if profile has it enabled already OR if they have history
+                const hasProfilePref = currentProfile?.preferences?.showEaglesPeak === true;
+                setIsAdmin(localStorage.getItem('is_admin') === 'true' || hasProfilePref || hasHistory);
+            }
         }
-    }, [isOpen, currentProfile]);
+    }, [isOpen, currentProfile, hasHistory]);
 
     if (!isOpen) return null;
 
@@ -35,11 +51,23 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            // Merge separate state into formData for persistence
+            const finalData = {
+                ...formData,
+                preferences: {
+                    ...formData.preferences,
+                    showEaglesPeak: showEaglesPeak
+                }
+            };
+
             await fetch('/api/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(finalData),
             });
+            // Save Local Overrides
+            localStorage.setItem('show_eagles_peak', String(showEaglesPeak));
+
             onSave(); // Trigger refresh in parent
             onClose();
         } catch (e) {
@@ -97,11 +125,52 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
     );
 
     const PERSONAS = [
-        { id: 'clara', name: 'Clara', desc: 'Warm, flirty, supportive.', img: '/avatars/clara.png' },
+        { id: 'clara', name: 'Clara', desc: 'Warm, fun, supportive.', img: '/avatars/clara.png' },
         { id: 'atlas', name: 'Atlas', desc: 'Stoic, disciplined, steady.', img: '/avatars/atlas.png' },
         { id: 'cole', name: 'Cole', desc: 'Cocky, intense, demanding.', img: '/avatars/cole.png' },
         { id: 'ember', name: 'Ember', desc: 'Calm, reassuring, safe.', img: '/avatars/ember.png' },
     ];
+
+    // --- Helper: Client-Side Resizer ---
+    const handleResizeAndUpload = (file: File, fieldName: keyof UserProfile) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 256;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                if (base64.length > 50000) {
+                    alert("Image is too complex. Please try a simpler image.");
+                    return;
+                }
+                handleChange(fieldName, base64);
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -123,7 +192,7 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                             onClick={() => setActiveTab('profile')}
                             className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'profile' ? 'text-white border-purple-500' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
                         >
-                            Profile
+                            Goals
                         </button>
                         <button
                             onClick={() => setActiveTab('prefs')}
@@ -145,226 +214,122 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
 
                     {activeTab === 'profile' ? (
                         <>
-                            {/* Identity Section */}
+                            {/* Goals Section */}
                             <div className="space-y-4">
-                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Identity</h3>
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Stats & Targets</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] text-zinc-400 mb-1">Name</label>
-                                        <input
-                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
-                                            value={formData.name || ''}
-                                            onChange={e => handleChange('name', e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
+                                    {/* Left Column: Base Stats */}
+                                    <div className="space-y-4">
                                         <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">Avatar</label>
-                                            <div className="flex gap-2 items-center flex-1">
-                                                {formData.userAvatar && (
-                                                    <img src={formData.userAvatar} alt="User" className="w-8 h-8 rounded-full bg-zinc-800 object-cover" />
-                                                )}
-                                                <label className="flex-1 cursor-pointer">
-                                                    <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors flex items-center justify-center gap-2">
-                                                        Upload
-                                                    </div>
-                                                    <input
-                                                        type="file"
-                                                        className="hidden"
-                                                        accept="image/*"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) {
-                                                                const data = new FormData();
-                                                                data.append('file', file);
-                                                                fetch('/api/upload', { method: 'POST', body: data })
-                                                                    .then(res => res.json())
-                                                                    .then(json => {
-                                                                        if (json.url) handleChange('userAvatar', json.url);
-                                                                    })
-                                                                    .catch(err => alert('Upload failed'));
-                                                            }
-                                                        }}
-                                                    />
-                                                </label>
-                                                {formData.userAvatar && (
-                                                    <button
-                                                        onClick={() => handleChange('userAvatar', '')}
-                                                        className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-500 hover:text-red-400 hover:border-red-900/50 transition-colors"
-                                                        title="clear"
-                                                    >
-                                                        <X size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">Age</label>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Base Weight (lbs)</label>
                                             <input
                                                 type="number"
-                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
-                                                value={formData.age || ''}
-                                                onChange={e => handleChange('age', Number(e.target.value))}
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
+                                                value={formData.currentWeight || ''}
+                                                onChange={e => handleChange('currentWeight', Number(e.target.value))}
+                                                placeholder="For BMR"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">Sex</label>
-                                            <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                                                <button
-                                                    onClick={() => handleChange('sex', 'M')}
-                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.sex === 'M' || !formData.sex ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
-                                                >M</button>
-                                                <button
-                                                    onClick={() => handleChange('sex', 'F')}
-                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.sex === 'F' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
-                                                >F</button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">Height</label>
-                                            <div className="flex gap-2">
-                                                <div className="relative flex-1">
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-3 pr-6 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
-                                                        value={Math.floor(Number(formData.height || 0) / 30.48) || ''}
-                                                        onChange={e => {
-                                                            const ft = Number(e.target.value);
-                                                            const inches = Math.round((Number(formData.height || 0) / 2.54) % 12);
-                                                            const totalCm = Math.round((ft * 30.48) + (inches * 2.54));
-                                                            handleChange('height', totalCm);
-                                                        }}
-                                                        placeholder="5"
-                                                    />
-                                                    <span className="absolute right-2 top-2 text-[10px] text-zinc-500 font-bold">ft</span>
-                                                </div>
-                                                <div className="relative flex-1">
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-3 pr-6 py-2 text-sm text-white focus:border-purple-500/50 outline-none"
-                                                        value={Math.round((Number(formData.height || 0) / 2.54) % 12) || ''}
-                                                        onChange={e => {
-                                                            const inches = Number(e.target.value);
-                                                            const ft = Math.floor(Number(formData.height || 0) / 30.48);
-                                                            const totalCm = Math.round((ft * 30.48) + (inches * 2.54));
-                                                            handleChange('height', totalCm);
-                                                        }}
-                                                        placeholder="10"
-                                                    />
-                                                    <span className="absolute right-2 top-2 text-[10px] text-zinc-500 font-bold">in</span>
-                                                </div>
-                                            </div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Base Body Fat %</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
+                                                value={formData.currentBodyFat || ''}
+                                                onChange={e => handleChange('currentBodyFat', Number(e.target.value))}
+                                                placeholder="Est."
+                                            />
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Goals Section */}
-                                <div className="space-y-4 pt-4 border-t border-zinc-800/50">
-                                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Stats & Targets</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {/* Left Column: Base Stats */}
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-400 mb-1">Base Weight (lbs)</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
-                                                    value={formData.currentWeight || ''}
-                                                    onChange={e => handleChange('currentWeight', Number(e.target.value))}
-                                                    placeholder="For BMR"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-400 mb-1">Base Body Fat %</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none"
-                                                    value={formData.currentBodyFat || ''}
-                                                    onChange={e => handleChange('currentBodyFat', Number(e.target.value))}
-                                                    placeholder="Est."
-                                                />
-                                            </div>
+                                    {/* Right Column: Goals */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Goal Weight (lbs)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
+                                                value={formData.goalWeight || ''}
+                                                onChange={e => handleChange('goalWeight', Number(e.target.value))}
+                                            />
                                         </div>
-
-                                        {/* Right Column: Goals */}
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-400 mb-1">Goal Weight (lbs)</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
-                                                    value={formData.goalWeight || ''}
-                                                    onChange={e => handleChange('goalWeight', Number(e.target.value))}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-400 mb-1">Goal Body Fat %</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
-                                                    value={formData.goalBodyFat || ''}
-                                                    onChange={e => handleChange('goalBodyFat', Number(e.target.value))}
-                                                />
-                                            </div>
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-400 mb-1">Goal Body Fat %</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none"
+                                                value={formData.goalBodyFat || ''}
+                                                onChange={e => handleChange('goalBodyFat', Number(e.target.value))}
+                                            />
                                         </div>
                                     </div>
+                                    {/* Full Width: Custom Goals */}
+                                    <div className="col-span-2 pt-2">
+                                        <label className="block text-[10px] text-zinc-400 mb-1 uppercase tracking-wider font-bold">Specific Goals</label>
+                                        <textarea
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none min-h-[80px]"
+                                            value={formData.otherGoals || ''}
+                                            onChange={e => handleChange('otherGoals', e.target.value)}
+                                            placeholder="e.g. 'I want to bench 225lbs', 'Run a 5k under 25 min', 'Lift 4x a week'..."
+                                        />
+                                    </div>
                                 </div>
-                                {/* Activity & Metabolism */}
-                                <div className="space-y-4 pt-4 border-t border-zinc-800/50">
-                                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Metabolism Engine</h3>
+                            </div>
+                            {/* Activity & Metabolism */}
+                            <div className="space-y-4 pt-4 border-t border-zinc-800/50">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Metabolism Engine</h3>
 
-                                    <div className="space-y-3">
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-[10px] text-zinc-400 mb-1">Activity Level</label>
+                                        <select
+                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none appearance-none"
+                                            value={formData.activityLevel || 1.2}
+                                            onChange={e => handleChange('activityLevel', Number(e.target.value))}
+                                        >
+                                            <option value={1.2}>Sedentary (Desk Job)</option>
+                                            <option value={1.375}>Lightly Active (1-3 days)</option>
+                                            <option value={1.55}>Moderately Active (3-5 days)</option>
+                                            <option value={1.725}>Very Active (6-7 days)</option>
+                                            <option value={1.9}>Extra Active (Physical Job)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* BMR / TDEE Display */}
+                                    <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800/50 grid grid-cols-2 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">BMR</div>
+                                            <div className="text-xl font-bold text-zinc-300">{stats.bmr}</div>
+                                            <div className="text-[9px] text-zinc-600">Coma Calories</div>
+                                        </div>
+                                        <div className="text-center relative">
+                                            <div className="text-[10px] text-blue-500 uppercase tracking-widest font-bold">TDEE</div>
+                                            <div className="text-xl font-bold text-white">{stats.tdee}</div>
+                                            <div className="text-[9px] text-zinc-500">Maintenance</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Overrides */}
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
                                         <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">Activity Level</label>
-                                            <select
-                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500/50 outline-none appearance-none"
-                                                value={formData.activityLevel || 1.2}
-                                                onChange={e => handleChange('activityLevel', Number(e.target.value))}
-                                            >
-                                                <option value={1.2}>Sedentary (Desk Job)</option>
-                                                <option value={1.375}>Lightly Active (1-3 days)</option>
-                                                <option value={1.55}>Moderately Active (3-5 days)</option>
-                                                <option value={1.725}>Very Active (6-7 days)</option>
-                                                <option value={1.9}>Extra Active (Physical Job)</option>
-                                            </select>
+                                            <label className="block text-[10px] text-zinc-500 mb-1">BMR Override</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
+                                                value={formData.bmrOverride || ''}
+                                                onChange={e => handleChange('bmrOverride', Number(e.target.value))}
+                                                placeholder={`Auto: ${stats.bmr}`}
+                                            />
                                         </div>
-
-                                        {/* BMR / TDEE Display */}
-                                        <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800/50 grid grid-cols-2 gap-4">
-                                            <div className="text-center">
-                                                <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">BMR</div>
-                                                <div className="text-xl font-bold text-zinc-300">{stats.bmr}</div>
-                                                <div className="text-[9px] text-zinc-600">Coma Calories</div>
-                                            </div>
-                                            <div className="text-center relative">
-                                                <div className="text-[10px] text-blue-500 uppercase tracking-widest font-bold">TDEE</div>
-                                                <div className="text-xl font-bold text-white">{stats.tdee}</div>
-                                                <div className="text-[9px] text-zinc-500">Maintenance</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Overrides */}
-                                        <div className="grid grid-cols-2 gap-4 pt-2">
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-500 mb-1">BMR Override</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
-                                                    value={formData.bmrOverride || ''}
-                                                    onChange={e => handleChange('bmrOverride', Number(e.target.value))}
-                                                    placeholder={`Auto: ${stats.bmr}`}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] text-zinc-500 mb-1">Protein Target (g)</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
-                                                    value={formData.proteinOverride || ''}
-                                                    onChange={e => handleChange('proteinOverride', Number(e.target.value))}
-                                                    placeholder="180"
-                                                />
-                                            </div>
+                                        <div>
+                                            <label className="block text-[10px] text-zinc-500 mb-1">Protein Target (g)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:border-zinc-700 outline-none"
+                                                value={formData.proteinOverride || ''}
+                                                onChange={e => handleChange('proteinOverride', Number(e.target.value))}
+                                                placeholder="180"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -432,6 +397,22 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                             className="accent-purple-500 w-4 h-4"
                                         />
                                     </label>
+
+                                    {/* Enable Eagles Peak (Local Only) - Hidden unless admin or already enabled */}
+                                    {(isAdmin || showEaglesPeak) && (
+                                        <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-amber-500">Enable Eagles Peak 🏔️</span>
+                                                <span className="text-[9px] text-zinc-500">Visible only on this device</span>
+                                            </div>
+                                            <input
+                                                type="checkbox"
+                                                checked={showEaglesPeak}
+                                                onChange={e => setShowEaglesPeak(e.target.checked)}
+                                                className="accent-amber-500 w-4 h-4"
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -519,16 +500,7 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                                         accept="image/*"
                                                         onChange={(e) => {
                                                             const file = e.target.files?.[0];
-                                                            if (file) {
-                                                                const data = new FormData();
-                                                                data.append('file', file);
-                                                                fetch('/api/upload', { method: 'POST', body: data })
-                                                                    .then(res => res.json())
-                                                                    .then(json => {
-                                                                        if (json.url) handleChange('customCoachAvatar', json.url);
-                                                                    })
-                                                                    .catch(err => alert('Upload failed'));
-                                                            }
+                                                            if (file) handleResizeAndUpload(file, 'customCoachAvatar');
                                                         }}
                                                     />
                                                 </label>
@@ -543,36 +515,28 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                                                 )}
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-[10px] text-zinc-400 mb-1">System Prompt Override</label>
-                                            <textarea
-                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 font-mono focus:border-purple-500/50 outline-none min-h-[100px]"
-                                                value={formData.customSystemPrompt || ''}
-                                                onChange={e => handleChange('customSystemPrompt', e.target.value)}
-                                                placeholder="Paste full system prompt here to completely replace the standard persona..."
-                                            />
-                                        </div>
+
                                     </div>
-
-                                    {(formData.customCoachName || formData.customCoachAvatar || formData.customSystemPrompt) && (
-                                        <div className="pt-2">
-                                            <button
-                                                onClick={() => setFormData(prev => ({
-                                                    ...prev,
-                                                    customCoachName: '',
-                                                    customCoachAvatar: '',
-                                                    customSystemPrompt: ''
-                                                }))}
-                                                className="w-full text-xs text-zinc-500 hover:text-red-400 border border-zinc-800 hover:border-red-900/30 rounded-lg py-2 transition-colors"
-                                            >
-                                                Reset Custom Coach
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
-                            </div>
 
+                                {(formData.customCoachName || formData.customCoachAvatar) && (
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                customCoachName: '',
+                                                customCoachAvatar: '',
+                                            }))}
+                                            className="w-full text-xs text-zinc-500 hover:text-red-400 border border-zinc-800 hover:border-red-900/30 rounded-lg py-2 transition-colors"
+                                        >
+                                            Reset Custom Coach
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
+
                     )}
                 </div>
 
@@ -588,6 +552,6 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave }: Setti
                 </div>
 
             </div>
-        </div>
+        </div >
     );
 }

@@ -11,8 +11,8 @@ export type StoredMessage = {
 // We use a specific tab for memory
 const SHEET_RANGE = 'Memory!A:C';
 
-async function getSheets() {
-    const { auth, sheetId } = await getAuth();
+async function getSheets(sheetIdOverride?: string) {
+    const { auth, sheetId } = await getAuth(sheetIdOverride);
     if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID'); // Can't read memory without ID
     return {
         sheets: google.sheets({ version: 'v4', auth }),
@@ -20,9 +20,9 @@ async function getSheets() {
     };
 }
 
-export async function getRecentHistory(limit: number = 20): Promise<StoredMessage[]> {
+export async function getRecentHistory(limit: number = 20, sheetIdOverride?: string): Promise<StoredMessage[]> {
     try {
-        const { sheets, sheetId } = await getSheets();
+        const { sheets, sheetId } = await getSheets(sheetIdOverride);
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: sheetId,
@@ -51,9 +51,9 @@ export async function getRecentHistory(limit: number = 20): Promise<StoredMessag
     }
 }
 
-export async function appendExchange(userContent: string, assistantContent: string) {
+export async function appendExchange(userContent: string, assistantContent: string, sheetIdOverride?: string) {
     try {
-        const { sheets, sheetId } = await getSheets();
+        const { sheets, sheetId } = await getSheets(sheetIdOverride);
         const now = Date.now();
 
         const values = [

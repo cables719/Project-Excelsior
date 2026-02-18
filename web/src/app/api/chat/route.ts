@@ -1,33 +1,53 @@
 import { google } from '@ai-sdk/google';
-import { streamText } from 'ai';
+import { generateText } from 'ai';
 
 import { fetchContext, DataContext } from '@/lib/data';
 import { getClaraSystemPrompt } from '@/lib/persona';
 import { getRecentHistory, appendExchange } from '@/lib/memory';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { getUserConfig } from "@/lib/user-store";
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
     // console.log('[API] Chat request received');
-    // const start = Date.now();
     const { messages, clientDate } = await req.json();
 
     // 1. Fetch real-time data
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    const config = await getUserConfig(session.user.email);
+    // If no config, we could fail or fall back.
+    if (!config?.sheetId) {
+        console.warn(`[API] No sheet configured for ${session.user.email}`);
+    }
+
     let contextString = '';
     let rawData: DataContext | null = null;
+    let history: any[] = [];
+
     try {
-        // console.log('[API] Fetching context...');
-        rawData = await fetchContext();
-        // console.log(`[API] Context fetched in ${Date.now() - start}ms`);
-        contextString = rawData.formattedString;
+        if (config?.sheetId) {
+            // [OPTIMIZATION] Reduced from 365 days to 30 days
+            rawData = await fetchContext(30, config.sheetId);
+            contextString = rawData.formattedString;
+
+            // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
+            history = await getRecentHistory(30, config.sheetId);
+        } else {
+            // No sheet, no context.
+            contextString = "[No personal data available. User has not linked a Google Sheet.]";
+        }
     } catch (error) {
         console.error('[API] Error fetching context:', error);
         contextString = '[Error fetching recent data. Proceed with caution.]';
     }
 
     // 2. Define Persona & Memory
-    // Load last 10 messages for context (adjustable)
-    const history = await getRecentHistory(10);
     const historyText = history.map(h => `${h.role === 'user' ? 'User' : 'Clara'}: ${h.content}`).join('\n');
 
     const systemPrompt = `${getClaraSystemPrompt(rawData, clientDate)}
@@ -40,29 +60,37 @@ ${contextString}
 ${historyText}
 `;
 
-    console.log('[API] content prepared, starting stream...');
+    console.log('[API] content prepared, starting generation...');
 
-    // 3. Stream Response
-    // Switching to 2.0-flash-lite (Stable Alias)
+    // 3. Generate Response (Non-Streaming)
+    // Switching to 2.0-flash-lite (Stable Alias) -> Using 2.5 flash as before
     try {
-        const result = streamText({
+        const { text } = await generateText({
             model: google('gemini-2.5-flash'),
             system: systemPrompt,
-            messages,
-            onFinish: ({ text }) => {
-                const lastUserMsg = messages[messages.length - 1];
-                if (lastUserMsg && lastUserMsg.role === 'user') {
-                    void appendExchange(lastUserMsg.content, text);
+            messages: messages.map((m: any) => {
+                if (m.role === 'user' && m.images && m.images.length > 0) {
+                    return {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: m.content },
+                            ...m.images.map((img: string) => ({ type: 'image', image: img }))
+                        ]
+                    };
                 }
-            },
+                return { role: m.role, content: m.content };
+            }),
         });
 
-        return result.toTextStreamResponse();
+        // Log to Sheets
+        const lastUserMsg = messages[messages.length - 1];
+        if (lastUserMsg && lastUserMsg.role === 'user') {
+            await appendExchange(lastUserMsg.content, text, config?.sheetId);
+        }
+
+        return Response.json({ role: 'assistant', content: text });
     } catch (error) {
-        console.error('[API] Streaming error:', error);
-        // Return a JSON error that the frontend can parse (though stream reader might just see text)
-        // Since we are expected to return a stream, returning a JSON response might break the frontend reader 
-        // unless we handle it. But standard fetch check response.ok first.
+        console.error('[API] Generation error:', error);
         return new Response(JSON.stringify({ error: 'Server Refused Connection (Quota?)' }), {
             status: 429,
             headers: { 'Content-Type': 'application/json' }

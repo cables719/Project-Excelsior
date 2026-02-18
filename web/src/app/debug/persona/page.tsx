@@ -46,6 +46,7 @@ export default function PersonaDebugPage() {
             lifts: mockLifts as any[],
             cardio: [],
             nutrition: mockNutrition as any[],
+            eaglesPeakLogs: [],
             userProfile: mockProfile,
             formattedString: ''
         };

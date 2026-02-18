@@ -1,10 +1,16 @@
 
-import React, { useState } from 'react';
-import { Scale, Dumbbell, Heart, Utensils } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Activity, Plus, Scale, Utensils, Dumbbell, Heart, Mountain, Camera } from 'lucide-react';
+import { EaglesPeakForm } from './EaglesPeakForm';
+
+
+import { DataContext, Lift } from '@/lib/types'; // Import Lift type
+import { detectTier } from '@/lib/analytics'; // Import tier detection
 
 interface LogFormsProps {
-    logType: 'weigh-in' | 'lift' | 'cardio' | 'nutrition';
-    setLogType: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition') => void;
+    logType: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak';
+    setLogType: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
+    lifts?: Lift[]; // Add lifts prop
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     weighInForm: any; setWeighInForm: (val: any) => void;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,20 +21,21 @@ interface LogFormsProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     foodAnalysis: any; setFoodAnalysis: (val: any) => void;
     isAnalyzing: boolean;
-    handleAnalyzeFood: () => void;
+    handleAnalyzeFood: (imageSrc?: string) => void; // Updated signature
     isSubmitting: boolean;
-    handleLogSubmit: (e: React.FormEvent) => void;
-    netCalories: number;
-    caloriesIn: number;
-    proteinIn: number;
-    proteinTarget: number;
-    activityBurn: number;
+    handleLogSubmit: (e: React.FormEvent, typeOverride?: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
     preferences?: {
         hideCardio?: boolean;
         hideLifts?: boolean;
         hideBodyFat?: boolean;
         hideNutrition?: boolean;
+        showEaglesPeak?: boolean;
     };
+    logDate: string;
+    setLogDate: (date: string) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onLogEaglesPeak?: (data: any) => Promise<void>;
+    hideTabs?: boolean;
 }
 
 export function LogForms({
@@ -40,37 +47,120 @@ export function LogForms({
     foodAnalysis, setFoodAnalysis,
     isAnalyzing, handleAnalyzeFood,
     isSubmitting, handleLogSubmit,
-    netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn,
-    preferences
+    preferences, logDate, setLogDate, lifts = [], onLogEaglesPeak,
+    hideTabs = false
 }: LogFormsProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Smart History Logic
+    const getHistory = () => {
+        if (!liftForm.exercise || lifts.length === 0) return null;
+
+        const exerciseLifts = lifts
+            .filter(l => l.exercise.toLowerCase() === liftForm.exercise.toLowerCase())
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        if (exerciseLifts.length === 0) return null;
+
+        const lastT1 = exerciseLifts.find(l => {
+            const reps = parseFloat(l.reps);
+            return !isNaN(reps) && detectTier(reps) === 'T1';
+        });
+
+        const lastT2 = exerciseLifts.find(l => {
+            const reps = parseFloat(l.reps);
+            return !isNaN(reps) && detectTier(reps) === 'T2';
+        });
+
+        return { lastT1, lastT2 };
+    };
+
+    const history = logType === 'lift' ? getHistory() : null;
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Resize Logic
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_DIM = 1500; // Safety resize for API limit
+
+                if (width > MAX_DIM || height > MAX_DIM) {
+                    if (width > height) {
+                        height *= MAX_DIM / width;
+                        width = MAX_DIM;
+                    } else {
+                        width *= MAX_DIM / height;
+                        height = MAX_DIM;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                const base64 = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Trigger Analysis Immediately
+                handleAnalyzeFood(base64);
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so same file can be selected again if needed
+        e.target.value = '';
+    };
 
     return (
         <div className="space-y-4 pt-6 border-t border-zinc-800/50">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    {/* Dynamic Icon */}
-                    {logType === 'weigh-in' && <Scale size={18} className="text-purple-500" />}
-                    {logType === 'lift' && <Dumbbell size={18} className="text-emerald-500" />}
-                    {logType === 'cardio' && <Heart size={18} className="text-blue-500" />}
-                    {logType === 'nutrition' && <Utensils size={18} className="text-amber-500" />}
-                    <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Entry Log</h2>
+            {!hideTabs && (
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 px-2">
+                        {/* Dynamic Icon */}
+                        {logType === 'weigh-in' && <Scale size={18} className="text-purple-500" />}
+                        {logType === 'lift' && <Dumbbell size={18} className="text-emerald-500" />}
+                        {logType === 'cardio' && <Heart size={18} className="text-blue-500" />}
+                        {logType === 'nutrition' && <Utensils size={18} className="text-amber-500" />}
+                        {logType === 'eagles-peak' && <Mountain size={18} className="text-amber-600" />}
+                    </div>
+                    <div className="flex flex-wrap gap-1 w-full bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                        <button type="button" onClick={() => setLogType('weigh-in')} className={`flex-1 min-w-[70px] py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'weigh-in' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>BODY</button>
+                        {!preferences?.hideLifts && (
+                            <button type="button" onClick={() => setLogType('lift')} className={`flex-1 min-w-[70px] py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
+                        )}
+                        {!preferences?.hideCardio && (
+                            <button type="button" onClick={() => setLogType('cardio')} className={`flex-1 min-w-[70px] py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
+                        )}
+                        {!preferences?.hideNutrition && (
+                            <button type="button" onClick={() => setLogType('nutrition')} className={`flex-1 min-w-[70px] py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
+                        )}
+                        {preferences?.showEaglesPeak && (
+                            <button type="button" onClick={() => setLogType('eagles-peak')} className={`flex-1 min-w-[70px] py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'eagles-peak' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>PEAK</button>
+                        )}
+                    </div>
                 </div>
-                <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                    <button type="button" onClick={() => setLogType('weigh-in')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'weigh-in' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>BODY</button>
-                    {!preferences?.hideLifts && (
-                        <button type="button" onClick={() => setLogType('lift')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'lift' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>LIFT</button>
-                    )}
-                    {!preferences?.hideCardio && (
-                        <button type="button" onClick={() => setLogType('cardio')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'cardio' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>CARDIO</button>
-                    )}
-                    {!preferences?.hideNutrition && (
-                        <button type="button" onClick={() => setLogType('nutrition')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition-all ${logType === 'nutrition' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}>FOOD</button>
-                    )}
-                </div>
+            )}
+
+            {/* Date Picker (Optional) */}
+            <div className="flex justify-end mb-2" key={logType}>
+                <input
+                    type="date"
+                    value={logDate}
+                    onChange={(e) => setLogDate(e.target.value)}
+                    className="bg-transparent text-zinc-500 text-[10px] font-mono border-b border-zinc-800 focus:border-emerald-500 focus:outline-none text-right appearance-none"
+                    placeholder="Today"
+                />
             </div>
 
             <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-6">
-                <form onSubmit={handleLogSubmit} className="space-y-4">
+                <form onSubmit={(e) => handleLogSubmit(e, logType)} className="space-y-4">
                     {logType === 'weigh-in' && (
                         <>
                             <div className="grid grid-cols-2 gap-4">
@@ -118,6 +208,30 @@ export function LogForms({
                                     placeholder="Exercise Name"
                                 />
                             </div>
+
+                            {/* Smart History Display */}
+                            {history && (
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    {history.lastT1 ? (
+                                        <div className="bg-black/40 border border-zinc-800 rounded p-2 text-[10px]">
+                                            <div className="text-emerald-500 font-bold uppercase mb-0.5">Last T1 (Heavy)</div>
+                                            <div className="text-white font-mono">{history.lastT1.weight}lbs</div>
+                                            <div className="text-zinc-400">{history.lastT1.sets}x{history.lastT1.reps} on {history.lastT1.date.split('/').slice(0, 2).join('/')}</div>
+                                            {history.lastT1.notes && <div className="text-zinc-500 italic truncate mt-1">"{history.lastT1.notes}"</div>}
+                                        </div>
+                                    ) : <div className="bg-black/20 border border-zinc-800/50 rounded p-2 text-[10px] text-zinc-600 flex items-center justify-center">No T1 History</div>}
+
+                                    {history.lastT2 ? (
+                                        <div className="bg-black/40 border border-zinc-800 rounded p-2 text-[10px]">
+                                            <div className="text-blue-500 font-bold uppercase mb-0.5">Last T2 (Vol)</div>
+                                            <div className="text-white font-mono">{history.lastT2.weight}lbs</div>
+                                            <div className="text-zinc-400">{history.lastT2.sets}x{history.lastT2.reps} on {history.lastT2.date.split('/').slice(0, 2).join('/')}</div>
+                                            {history.lastT2.notes && <div className="text-zinc-500 italic truncate mt-1">"{history.lastT2.notes}"</div>}
+                                        </div>
+                                    ) : <div className="bg-black/20 border border-zinc-800/50 rounded p-2 text-[10px] text-zinc-600 flex items-center justify-center">No T2 History</div>}
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-3 gap-3">
                                 <input type="number" placeholder="Sets" className="bg-[#0a0a0a] border border-zinc-800 rounded-lg px-2 py-3 text-sm text-center focus:border-emerald-500/50 focus:outline-none transition-all" value={liftForm.sets} onChange={e => setLiftForm({ ...liftForm, sets: e.target.value })} />
                                 <input type="number" placeholder="Reps" className="bg-[#0a0a0a] border border-zinc-800 rounded-lg px-2 py-3 text-sm text-center focus:border-emerald-500/50 focus:outline-none transition-all" value={liftForm.reps} onChange={e => setLiftForm({ ...liftForm, reps: e.target.value })} />
@@ -167,59 +281,38 @@ export function LogForms({
 
                     {logType === 'nutrition' && (
                         <div className="space-y-4">
-                            {/* Net Calorie Budget Card */}
-                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex justify-between items-center">
-                                <div>
-                                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Daily Budget</div>
-                                    <div className="text-xs text-zinc-400">
-                                        <span className="text-white font-bold">{netCalories + caloriesIn}</span> (TDEE)
-                                        <span className="mx-2">-</span>
-                                        <span className="text-white font-bold">{caloriesIn}</span> (Eaten)
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className={`text-2xl font-bold ${netCalories >= 0 ? 'text-emerald-400' : 'text-rose-500'}`}>
-                                        {netCalories >= 0 ? `${netCalories} left` : `${Math.abs(netCalories)} over`}
-                                    </div>
-                                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Net Remaining</div>
-                                </div>
-                            </div>
 
-                            {/* Protein Goal Card */}
-                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex justify-between items-center">
-                                <div>
-                                    <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Protein Goal</div>
-                                    <div className="text-xs text-zinc-400">
-                                        <span className={`font-bold ${proteinIn >= proteinTarget ? 'text-emerald-400' : 'text-zinc-200'}`}>{proteinIn}g</span>
-                                        <span className="mx-1 text-zinc-600">/</span>
-                                        <span className="text-zinc-500">{proteinTarget}g</span>
-                                    </div>
-                                    {/* Mini Progress Bar */}
-                                    <div className="w-24 h-1 bg-zinc-800 rounded-full mt-2 overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full ${proteinIn >= proteinTarget ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                            style={{ width: `${Math.min(100, (proteinIn / proteinTarget) * 100)}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className={`text-xl font-bold ${proteinIn >= proteinTarget ? 'text-emerald-400' : 'text-amber-500'}`}>
-                                        {Math.round((proteinIn / proteinTarget) * 100)}%
-                                    </div>
-                                </div>
-                            </div>
 
-                            <textarea
-                                value={foodInput}
-                                onChange={e => setFoodInput(e.target.value)}
-                                className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-amber-500/50 focus:outline-none transition-colors min-h-[80px]"
-                                placeholder="Describe your meal (e.g. 'Chicken breast and rice')..."
-                            />
+                            <div className="relative">
+                                <textarea
+                                    value={foodInput}
+                                    onChange={e => setFoodInput(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 pr-12 text-sm focus:border-amber-500/50 focus:outline-none transition-colors min-h-[80px]"
+                                    placeholder="Describe your meal or snap a photo..."
+                                />
+                                {/* Camera Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="absolute bottom-3 right-3 text-zinc-500 hover:text-amber-500 transition-colors"
+                                    title="Upload Food Photo"
+                                >
+                                    <Camera size={20} />
+                                </button>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    ref={fileInputRef}
+                                    onChange={handleImageSelect}
+                                    className="hidden"
+                                />
+                            </div>
 
                             {!foodAnalysis ? (
                                 <button
                                     type="button"
-                                    onClick={handleAnalyzeFood}
+                                    onClick={() => handleAnalyzeFood()}
                                     disabled={isAnalyzing || !foodInput}
                                     className="w-full py-3 bg-zinc-800 text-zinc-200 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-700 transition-colors"
                                 >
@@ -256,13 +349,38 @@ export function LogForms({
                         </div>
                     )}
 
-                    {/* Hide standard submit button for nutrition unless analyzed */}
-                    {(logType !== 'nutrition' || foodAnalysis) && (
-                        <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-white text-black text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-200 transition-colors shadow-lg shadow-white/5 mt-2">
-                            {isSubmitting ? 'Saving...' : 'Log Entry'}
+
+                    {/* Hide standard submit button for nutrition unless analyzed, OR for eagles-peak (it has its own button) */}
+                    {((logType !== 'nutrition' && logType !== 'eagles-peak') || (logType === 'nutrition' && foodAnalysis)) && (
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`w-full py-4 text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-lg mt-2 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                                ${logType === 'weigh-in' ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20' : ''}
+                                ${logType === 'lift' ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20' : ''}
+                                ${logType === 'cardio' ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20' : ''}
+                                ${logType === 'nutrition' ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/20' : ''}
+                            `}
+                        >
+                            {isSubmitting ? 'Saving...' : 'Save'}
                         </button>
                     )}
                 </form>
+
+                {logType === 'eagles-peak' && onLogEaglesPeak && (
+                    <div className="pt-2">
+                        {/* We just render the dedicated form here, it handles its own submit logic */}
+                        {/* We need to hide the generic submit button below */}
+                        <EaglesPeakForm
+                            date={logDate}
+                            setDate={setLogDate}
+                            onSubmit={onLogEaglesPeak}
+                            isSubmitting={isSubmitting}
+                        />
+                    </div>
+                )}
+
+
             </div>
         </div>
     );

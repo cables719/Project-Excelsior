@@ -1,7 +1,7 @@
 
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { saveUserConfig } from "@/lib/user-store";
+import { saveUserConfig, getCookieName } from "@/lib/user-store";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -17,11 +17,13 @@ export async function POST(req: Request) {
             return new Response('Invalid Sheet ID', { status: 400 });
         }
 
+        const cookieName = getCookieName(session.user.email);
+
         // Return response with Set-Cookie header
         return new Response(JSON.stringify({ success: true }), {
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `fitsync_sheet_id=${sheetId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=315360000` // 10 years
+                'Set-Cookie': `${cookieName}=${sheetId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=315360000${process.env.NODE_ENV === 'production' ? '; Secure' : ''}` // 10 years
             }
         });
     } catch (error) {

@@ -27,11 +27,23 @@ async function ensureStore() {
     }
 }
 
+// Helper to generate user-specific cookie name to prevent data mismatch on shared devices
+export function getCookieName(email: string) {
+    // Sanitize email to be cookie-safe (alphanumeric + underscore)
+    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+    return `fitsync_sheet_${safeEmail}`;
+}
+
 export async function getUserConfig(email: string): Promise<UserConfig | null> {
-    // 1. Priority: Cookie (User Session)
+    // 1. Priority: Cookie (User Session) - Scoped to this specific user!
     try {
         const cookieStore = await cookies();
-        const sheetId = cookieStore.get('fitsync_sheet_id')?.value;
+        const cookieName = getCookieName(email);
+        const sheetId = cookieStore.get(cookieName)?.value;
+
+        // We log what we found to help debugging Cloud Run issues
+        // console.log(`[UserStore] Looking for cookie ${cookieName}:`, sheetId ? 'FOUND' : 'MISSING');
+
         if (sheetId) {
             return { sheetId };
         }

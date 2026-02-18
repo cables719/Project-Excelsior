@@ -1,8 +1,11 @@
 
+// Re-trigger build 2
+export const TYPES_VERSION = "1.0";
 export interface Message {
     id: string;
     role: 'user' | 'assistant';
     content: string;
+    images?: string[];
 }
 
 export interface WeighIn {
@@ -39,11 +42,27 @@ export interface Nutrition {
     notes: string;
 }
 
+export interface EaglesPeakLog {
+    date: string;
+    ascentTime: string;
+    overallTime: string;
+    averagePace: string;
+    averageHR: string;
+    maxHR: string;
+    zone5: string;
+    zone4: string;
+    zone3: string;
+    zone2: string;
+    calories: string;
+    notes: string;
+}
+
 export interface DataContext {
     weighIns: WeighIn[];
     lifts: Lift[];
     cardio: Cardio[];
     nutrition: Nutrition[];
+    eaglesPeakLogs: EaglesPeakLog[];
     userProfile?: UserProfile; // New optional profile
     formattedString: string;
     [key: string]: unknown;
@@ -72,13 +91,14 @@ export interface UserProfile {
     userAvatar?: string;
     customCoachName?: string;
     customCoachAvatar?: string;
-    customSystemPrompt?: string;
+
     // New Preferences
     preferences?: {
         hideCardio?: boolean;
         hideLifts?: boolean;
         hideBodyFat?: boolean;
         hideNutrition?: boolean;
+        showEaglesPeak?: boolean;
     };
     [key: string]: unknown;
 }

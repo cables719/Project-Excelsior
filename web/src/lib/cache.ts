@@ -7,7 +7,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minutes
+const CACHE_TTL_MS = 60 * 1000; // 60 Seconds (Aggressive cache invalidation for smoother UX)
 
 export const DataCache = {
     get: (key: string): DataContext | null => {
