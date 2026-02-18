@@ -8,6 +8,7 @@ import { SettingsModal } from '../components/SettingsModal';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ProfileModal } from '../components/ProfileModal';
 import { LogModal } from '../components/LogModal';
+import { FeedbackBox } from '../components/FeedbackBox';
 import type { Message, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, DataContext } from '@/lib/types';
 import { DataContextState } from '@/lib/context';
 import { calculateMovingAverage } from '@/lib/analytics';
@@ -451,7 +452,8 @@ export default function Page() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 pb-24 md:pb-4 px-4 md:px-0">
+        {/* Added flex-col and min-h-0 to constrain ChatInterface scrolling */}
+        <div className="flex-1 flex flex-col min-h-0 pb-24 md:pb-4 px-4 md:px-0">
           <ChatInterface
             messages={messages}
             isLoading={isLoading}
@@ -529,6 +531,7 @@ export default function Page() {
         </button>
       </div>
 
+      <FeedbackBox />
     </div>
   );
 }
