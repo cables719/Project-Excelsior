@@ -282,7 +282,7 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
 
     // Slice recent data
     const recentWeighIns = allWeighIns; // Keep all for graphing mostly
-    const recentLifts = allLifts.slice(-50);
+    const recentLifts = allLifts; // Keep ALL lifts for Smart History lookup
     const recentCardio = allCardio.slice(-20);
 
 

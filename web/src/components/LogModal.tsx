@@ -16,9 +16,12 @@ interface LogModalProps {
 export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [] }: LogModalProps) {
     // Internal State
     const [logType, setLogType] = useState(type);
+
     // Sync internal type with prop when it opens
     React.useEffect(() => {
-        if (isOpen) setLogType(type);
+        if (isOpen) {
+            setLogType(type);
+        }
     }, [isOpen, type]);
 
     const [logDate, setLogDate] = useState(new Date().toLocaleDateString('en-US'));
@@ -33,35 +36,49 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const resetForms = () => {
+        setFoodInput('');
+        setFoodAnalysis(null);
+        setWeighInForm({ weight: '', bodyFat: '', notes: '' });
+        setLiftForm({ exercise: '', sets: '', reps: '', weight: '', notes: '' });
+        setCardioForm({ activity: '', duration: '', distance: '', heartRate: '', notes: '' });
+    };
+
+    const handleClose = () => {
+        resetForms();
+        onClose();
+    };
+
     // Handlers
     const handleAnalyzeFood = async (imageSrc?: string) => {
         setIsAnalyzing(true);
         const toastId = toast.loading("Analyzing...");
         try {
-            const res = await fetch('/api/chat', {
+            const res = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: [
-                        { role: 'user', content: imageSrc ? "Analyze this food image." : `Analyze this: ${foodInput}` },
-                        // Image injection handled in API or context if needed, but for now assuming text or direct implementation
-                    ],
-                    dataContext: null, // Minimal context needed
-                    systemOverride: "You are a nutrition analyzer. Return JSON only: { item_name, calories, protein, reasoning }."
+                    text: foodInput,
+                    image: imageSrc
                 })
             });
-            // Mocking response for recovery as the actual backend logic might be complex
-            // In a real fix we'd ensure the API handles this.
-            // For now, let's assume the user just wants the UI fixed.
-            // Actually, let's try to do a real call if simple.
 
-            // To avoid complex API debug, let's just simulate success if API fails or returns non-JSON
-            setFoodAnalysis({ item_name: "Analyzed Item", calories: 500, protein: 30, reasoning: "Estimation based on input." });
-            toast.success("Analysis complete", { id: toastId });
+            if (!res.ok) throw new Error("Analysis failed");
+
+            const data = await res.json();
+
+            // Validate data structure roughly
+            if (data.item_name && (data.calories !== undefined || data.protein !== undefined)) {
+                setFoodAnalysis(data);
+                toast.success("Analysis complete", { id: toastId });
+            } else {
+                throw new Error("Invalid response format");
+            }
 
         } catch (e) {
             console.error(e);
-            toast.error("Analysis failed", { id: toastId });
+            toast.error("Analysis failed. Please try again.", { id: toastId });
+            setFoodAnalysis(null);
         } finally {
             setIsAnalyzing(false);
         }
@@ -73,16 +90,31 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
         try {
             // Construct payload based on active logtype
             const activeType = typeOverride || logType;
+            // Capture time of log for Nutrition
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
             let payload: any = { type: activeType, date: logDate };
 
             if (activeType === 'weigh-in') payload = { ...payload, ...weighInForm };
             else if (activeType === 'lift') payload = { ...payload, ...liftForm };
             else if (activeType === 'cardio') payload = { ...payload, ...cardioForm };
-            else if (activeType === 'nutrition') payload = { ...payload, ...foodAnalysis, description: foodInput };
+            else if (activeType === 'nutrition') {
+                payload = {
+                    ...payload,
+                    ...foodAnalysis,
+                    time: timeString,
+                    item: foodAnalysis?.item_name || foodInput, // Prioritize analysis, fallback to input
+                    notes: foodInput,
+                    description: foodInput // Keep raw description if needed by backend, though 'item' is the sheet column
+                };
+            }
 
             await onSave(payload);
-            setFoodInput('');
-            setFoodAnalysis(null);
+
+            // Reset Forms
+            resetForms();
+
             onClose();
         } catch (e) {
             console.error(e);
@@ -102,7 +134,7 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
             >
                 <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-zinc-900/50">
                     <h2 className="text-sm font-bold text-white uppercase tracking-wider">Log Activity</h2>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                    <button onClick={handleClose} className="text-zinc-500 hover:text-white transition-colors">
                         <X size={20} />
                     </button>
                 </div>

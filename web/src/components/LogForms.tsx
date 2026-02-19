@@ -52,12 +52,54 @@ export function LogForms({
 }: LogFormsProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Unique Exercises for Datalist
+    const uniqueExercises = React.useMemo(() => {
+        const set = new Set(lifts.map(l => l.exercise));
+        return Array.from(set).sort();
+    }, [lifts]);
+
+
+
+    // Lift Suggestions
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const filteredExercises = React.useMemo(() => {
+        if (!liftForm.exercise) return uniqueExercises;
+        return uniqueExercises.filter(ex => ex.toLowerCase().includes(liftForm.exercise.toLowerCase()));
+    }, [uniqueExercises, liftForm.exercise]);
+
+    const handleSelectExercise = (ex: string) => {
+        setLiftForm({ ...liftForm, exercise: ex });
+        setShowSuggestions(false);
+    };
+
+    // Food Suggestions
+    const commonFoods = [
+        "30g protein shake (30g protein, 150 calories)",
+        "Homemade protein shake (60g protein, 400 calories)",
+        "20g protein bar (20g protein, 200 calories)",
+        "Chicken Breast (6oz cooked)",
+        "Greek Yogurt Cup"
+    ];
+    const [showFoodSuggestions, setShowFoodSuggestions] = useState(false);
+    const filteredFoods = React.useMemo(() => {
+        if (!foodInput) return commonFoods;
+        return commonFoods.filter(f => f.toLowerCase().includes(foodInput.toLowerCase()));
+    }, [foodInput]);
+
+    const handleSelectFood = (food: string) => {
+        setFoodInput(food);
+        setShowFoodSuggestions(false);
+    };
+
     // Smart History Logic
     const getHistory = () => {
         if (!liftForm.exercise || lifts.length === 0) return null;
 
+        const searchTerm = liftForm.exercise.trim().toLowerCase();
+        if (!searchTerm) return null;
+
         const exerciseLifts = lifts
-            .filter(l => l.exercise.toLowerCase() === liftForm.exercise.toLowerCase())
+            .filter(l => l.exercise.trim().toLowerCase() === searchTerm)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (exerciseLifts.length === 0) return null;
@@ -76,6 +118,7 @@ export function LogForms({
     };
 
     const history = logType === 'lift' ? getHistory() : null;
+
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -200,13 +243,32 @@ export function LogForms({
 
                     {logType === 'lift' && (
                         <>
-                            <div>
+                            <div className="relative group">
                                 <input
                                     value={liftForm.exercise}
-                                    onChange={e => setLiftForm({ ...liftForm, exercise: e.target.value })}
+                                    onChange={e => {
+                                        setLiftForm({ ...liftForm, exercise: e.target.value });
+                                        setShowSuggestions(true);
+                                    }}
+                                    onFocus={() => setShowSuggestions(true)}
+                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                     className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-emerald-500/50 focus:outline-none transition-colors text-white"
                                     placeholder="Exercise Name"
+                                    autoComplete="off"
                                 />
+                                {showSuggestions && filteredExercises.length > 0 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-[#0a0a0a] border border-zinc-800 rounded-lg shadow-xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                                        {filteredExercises.map(ex => (
+                                            <div
+                                                key={ex}
+                                                onClick={() => handleSelectExercise(ex)}
+                                                className="px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-900 cursor-pointer transition-colors"
+                                            >
+                                                {ex}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Smart History Display */}
@@ -283,13 +345,33 @@ export function LogForms({
                         <div className="space-y-4">
 
 
-                            <div className="relative">
+                            <div className="relative group">
                                 <textarea
                                     value={foodInput}
-                                    onChange={e => setFoodInput(e.target.value)}
+                                    onChange={e => {
+                                        setFoodInput(e.target.value);
+                                        setShowFoodSuggestions(true);
+                                    }}
+                                    onFocus={() => setShowFoodSuggestions(true)}
+                                    // Delay blur to allow click
+                                    onBlur={() => setTimeout(() => setShowFoodSuggestions(false), 200)}
                                     className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 pr-12 text-sm focus:border-amber-500/50 focus:outline-none transition-colors min-h-[80px]"
-                                    placeholder="Describe your meal or snap a photo..."
+                                    placeholder="Describe your meal..."
+                                    autoComplete="off"
                                 />
+                                {showFoodSuggestions && filteredFoods.length > 0 && !foodAnalysis && (
+                                    <div className="absolute z-10 w-full mt-1 bg-[#0a0a0a] border border-zinc-800 rounded-lg shadow-xl max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                                        {filteredFoods.map(food => (
+                                            <div
+                                                key={food}
+                                                onClick={() => handleSelectFood(food)}
+                                                className="px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-900 cursor-pointer transition-colors"
+                                            >
+                                                {food}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 {/* Camera Button */}
                                 <button
                                     type="button"

@@ -24,9 +24,14 @@ export async function POST(req: Request) {
        - "Pasta/Stroganoff" -> Standard bowl (~600-750 cal), not a trough.
     - **Protein Reality (BE CONSERVATIVE)**:
        - **"Protein" labeled items**: Do NOT assume best-case scenario. A "Protein Yogurt" is often 12-15g. Use averages.
+       - **Protein Shakes**: Unless "Mass Gainer" is specified, assume standard whey/casein (~120-150 cal for 25-30g protein). Do NOT default to 500+ cal.
        - **Meat**: Cooked beef is ~7g protein per oz.
        - **Impossible Totals**: If a single meal exceeds 1000 Calories or 80g Protein, **VERIFY** if this is reasonable. If unsure/ambiguous, lean towards the conservative (lower) estimate.
     
+    IMPORTANT:
+    If the image or text is NOT food (e.g. a person, a gym, a cat), return:
+    { "item_name": "Not Food", "calories": 0, "protein": 0, "reasoning": "This does not appear to be food." }
+
     Return ONLY a raw JSON object (no markdown, no backticks) with this structure:
     {
         "reasoning": "Brief explanation of how you calculated the totals involved (mentioning visual cues if applicable)",

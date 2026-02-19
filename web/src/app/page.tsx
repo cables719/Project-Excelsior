@@ -313,13 +313,24 @@ export default function Page() {
   };
 
 
+  // Image State
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
   // --- Chat Logic ---
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading || !dataContext) return;
+    if ((!text.trim() && !selectedImage) || isLoading || !dataContext) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
+    // Create message with optional image
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      images: selectedImage ? [selectedImage] : undefined
+    };
+
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setSelectedImage(null); // Clear image after sending
     setIsLoading(true);
 
     try {
@@ -335,7 +346,7 @@ export default function Page() {
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
-      const assistantMsg: Message = { id: Date.now().toString(), role: 'assistant', content: data.role === 'assistant' ? data.content : data.text }; // Handle verify response mismatch
+      const assistantMsg: Message = { id: Date.now().toString(), role: 'assistant', content: data.role === 'assistant' ? data.content : data.text };
 
       setMessages(prev => [...prev, assistantMsg]);
     } catch (error) {
@@ -347,6 +358,19 @@ export default function Page() {
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSelectedImage(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    // Reset val
+    e.target.value = '';
+  };
+
 
   // --- Log Handlers ---
   const handleOpenLogModal = (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => {
@@ -355,16 +379,30 @@ export default function Page() {
   };
 
   const handleLogSubmit = async (data: any) => {
-    // Optimistic Update
-    // ... (Complex, usually just refresh for now)
+    const toastId = toast.loading("Saving...");
+    try {
+      const response = await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: data.type,
+          data: data
+        })
+      });
 
-    // Refresh Data
-    await refreshData();
-    setIsLogModalOpen(false);
-    toast.success("Log saved!");
+      if (!response.ok) throw new Error('Failed to log');
 
-    // AI Reaction? (Optional)
-    // sendMessage(`I just logged my ${logModalType}. Analysis?`);
+      // Refresh Data
+      await refreshData();
+      setIsLogModalOpen(false);
+      toast.success("Log saved!", { id: toastId });
+
+      // AI Reaction? (Optional)
+      // sendMessage(`I just logged my ${logModalType}. Analysis?`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save log.", { id: toastId });
+    }
   };
 
   const handleProfileSave = async () => {
@@ -411,6 +449,8 @@ export default function Page() {
           onClose={() => setIsLogModalOpen(false)}
           type={logModalType}
           onSave={handleLogSubmit}
+          lifts={dataContext?.lifts}
+          preferences={dataContext?.userProfile?.preferences}
         />
       </DataContextState.Provider>
 
@@ -464,6 +504,11 @@ export default function Page() {
             input={input}
             setInput={setInput}
             handleChatSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
+
+            // Image Props
+            selectedImage={selectedImage}
+            setSelectedImage={setSelectedImage}
+            onImageSelect={handleImageSelect}
           />
         </div>
 
