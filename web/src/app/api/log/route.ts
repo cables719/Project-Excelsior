@@ -1,7 +1,7 @@
 
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { appendWeighIn, appendLift, appendCardio, appendNutrition, appendEaglesPeakLog } from "@/lib/data";
+import { appendWeighIn, appendLift, appendCardio, appendNutrition, appendEaglesPeakLog, appendHydration, appendWellness } from "@/lib/data";
 import { getUserConfig } from "@/lib/user-store";
 
 export async function POST(req: Request) {
@@ -24,6 +24,8 @@ export async function POST(req: Request) {
         if (type === 'cardio') await appendCardio(data, config.sheetId);
         if (type === 'nutrition') await appendNutrition(data, config.sheetId);
         if (type === 'eagles-peak') await appendEaglesPeakLog(data, config.sheetId);
+        if (type === 'hydration') await appendHydration(data, config.sheetId);
+        if (type === 'wellness') await appendWellness(data, config.sheetId);
 
         return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json' }

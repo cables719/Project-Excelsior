@@ -1,9 +1,9 @@
 import { google } from 'googleapis';
-import { DataContext, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile } from './types';
+import { DataContext, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, HydrationLog, WellnessLog } from './types';
 export type { DataContext, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile };
+import { formatDataContext } from './format-context';
 import { DataCache } from './cache';
 import { getUserConfig } from './user-store';
-import { determinePersonalBests } from './analytics';
 
 // Config
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -136,6 +136,8 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
 
     const sheetTitles = (metaCallback.data.sheets || []).map(s => s.properties?.title || '');
     const hasEaglesPeak = sheetTitles.includes('Eagles Peak');
+    const hasHydration = sheetTitles.includes('Hydration');
+    const hasWellness = sheetTitles.includes('Wellness');
 
     const ranges = [
         'Weigh-ins!A2:E5000',
@@ -145,13 +147,27 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
         'User!A:B', // Fetch User Profile
     ];
 
-    // Only fetch Eagles Peak if it exists
+    // Track Indices
+    let extraIndexStart = 5;
+    let eaglesPeakIndex = -1;
+    let hydrationIndex = -1;
+    let wellnessIndex = -1;
+
     if (hasEaglesPeak) {
         ranges.push('Eagles Peak!A2:L5000');
+        eaglesPeakIndex = extraIndexStart++;
+    }
+    if (hasHydration) {
+        ranges.push('Hydration!A1:D5000');
+        hydrationIndex = extraIndexStart++;
+    }
+    if (hasWellness) {
+        ranges.push('Wellness!A1:D5000');
+        wellnessIndex = extraIndexStart++;
     }
 
     // [NEW] Dynamic Fetching of Universal Sheets
-    const knownSheets = ['Weigh-ins', 'Lifts', 'Cardio', 'Nutrition', 'User', 'Eagles Peak', 'Feedback', 'Memory'];
+    const knownSheets = ['Weigh-ins', 'Lifts', 'Cardio', 'Nutrition', 'User', 'Eagles Peak', 'Hydration', 'Wellness', 'Feedback', 'Memory'];
     // Filter out known sheets to find "Extras"
     const extraSheets = sheetTitles.filter(t => !knownSheets.includes(t));
 
@@ -173,11 +189,14 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
     const cardioRaw = valueRanges[2];
     const nutritionRaw = valueRanges[3];
     const userProfileRaw = valueRanges[4];
-    const eaglesPeakRaw = hasEaglesPeak ? valueRanges[5] : null;
+
+    // Optional Data
+    const eaglesPeakRaw = eaglesPeakIndex !== -1 ? valueRanges[eaglesPeakIndex] : null;
+    const hydrationRaw = hydrationIndex !== -1 ? valueRanges[hydrationIndex] : null;
+    const wellnessRaw = wellnessIndex !== -1 ? valueRanges[wellnessIndex] : null;
 
     // Extract Extra Data
-    const extraDataStart = 5 + (hasEaglesPeak ? 1 : 0);
-    const extraDataRaw = valueRanges.slice(extraDataStart);
+    const extraDataRaw = valueRanges.slice(extraIndexStart);
 
     // Helper to safely parse numbers
     const safeFloat = (val: string) => {
@@ -279,6 +298,26 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
         }))
         .filter(l => l.date);
 
+    // 8. Parse Hydration
+    const hydrationLogs: HydrationLog[] = (hydrationRaw?.values || [])
+        .map(row => ({
+            date: row[0] || '',
+            time: row[1] || '',
+            amount: row[2] || '',
+            source: row[3] || '',
+        }))
+        .filter(h => h.date && h.date !== 'Date');
+
+    // 9. Parse Wellness
+    const wellnessLogs: WellnessLog[] = (wellnessRaw?.values || [])
+        .map(row => ({
+            date: row[0] || '',
+            mood: row[1] || '',
+            energy: row[2] || '',
+            notes: row[3] || '',
+        }))
+        .filter(w => w.date && w.date !== 'Date');
+
 
     // Slice recent data
     const recentWeighIns = allWeighIns; // Keep all for graphing mostly
@@ -287,105 +326,21 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
 
 
 
-    // 5. Format for LLM
-    let formattedString = `=== RECENT DATA CONTEXT ===\n\n`;
-
-    if (userProfile) {
-        formattedString += `[USER PROFILE]\n`;
-        Object.entries(userProfile).forEach(([k, v]) => {
-            formattedString += `- ${k}: ${v}\n`;
-        });
-        formattedString += `\n`;
-    }
-
-    formattedString += `[RECENT WEIGH-INS (Last ${daysToFetch} Days)]\n`;
-    recentWeighIns.slice(-daysToFetch).forEach(w => {
-        const bf = w.bodyFat ? `(${w.bodyFat}% BF)` : '';
-        const n = w.notes ? `| Note: ${w.notes}` : '';
-        formattedString += `- ${w.date}: ${w.weight}lb ${bf} ${n}\n`;
-    });
-
-    formattedString += `\n[RECENT CARDIO]\n`;
-    recentCardio.forEach(c => {
-        formattedString += `- ${c.date}: ${c.activity} (${c.duration} min / ${c.distance}) ${c.heartRate ? 'HR:' + c.heartRate : ''} ${c.notes ? '| ' + c.notes : ''}\n`;
-    });
-
-
-
-    formattedString += `\n[PERSONAL RECORDS (All-Time Calculated Best e1RM)]\n`;
-    const personalBests = determinePersonalBests(allLifts);
-    Object.entries(personalBests).forEach(([lift, data]) => {
-        if (data) {
-            formattedString += `- ${lift}: ${Math.round(data.e1rm)}lbs (Based on ${data.sets}x${data.reps} @ ${data.weight}lbs on ${data.date})\n`;
-        }
-    });
-
-    formattedString += `\n[RECENT LIFTS (Last 50 entries)]\n`;
-    const liftsByDate: Record<string, string[]> = {};
-    recentLifts.forEach(l => {
-        if (!liftsByDate[l.date]) liftsByDate[l.date] = [];
-        const note = l.notes ? `(${l.notes})` : '';
-        liftsByDate[l.date].push(`${l.exercise} ${l.weight}lb (${l.sets}x${l.reps}) ${note}`);
-    });
-
-    Object.entries(liftsByDate).forEach(([date, exercises]) => {
-        formattedString += `${date}:\n`;
-        exercises.forEach(ex => formattedString += `  - ${ex}\n`);
-    });
-
-    formattedString += `\n[RECENT NUTRITION HISTORY]\n`;
-    const nutritionByDate: Record<string, string[]> = {};
-    // User requested "everything" - increasing limit significantly. 
-    // 1000 items ~ 6-9 months of logs.
-    const recentNutrition = allNutrition.slice(-100);
-    recentNutrition.forEach(n => {
-        if (!nutritionByDate[n.date]) nutritionByDate[n.date] = [];
-        nutritionByDate[n.date].push(`${n.item} (${n.calories}kcal, ${n.protein}g${n.notes ? ', ' + n.notes : ''})`);
-    });
-
-    // Sort dates desc
-    Object.keys(nutritionByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()).forEach(date => {
-        formattedString += `${date}:\n`;
-        nutritionByDate[date].forEach(item => formattedString += `  - ${item}\n`);
-    });
-
-    if (eaglesPeakLogs.length > 0) {
-        formattedString += `\n[EAGLES PEAK LOGS]\n`;
-        // Sort reverse chronological
-        eaglesPeakLogs.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).forEach(l => {
-            const hr = l.averageHR ? `AvgHR: ${l.averageHR}` : '';
-            const max = l.maxHR ? `MaxHR: ${l.maxHR}` : '';
-            const cal = l.calories ? `${l.calories}kcal` : '';
-            const notes = l.notes ? `(${l.notes})` : '';
-            formattedString += `- ${l.date}: Ascent ${l.ascentTime}, Total ${l.overallTime} ${hr} ${max} ${cal} ${notes}\n`;
-        });
-    }
-
-    // Append Extra Sheets Data
-    if (extraSheets.length > 0) {
-        formattedString += `\n[ADDITIONAL SHEETS DATA]\n`;
-        extraSheets.forEach((name, index) => {
-            const raw = extraDataRaw[index];
-            if (raw && raw.values && raw.values.length > 0) {
-                formattedString += `--- SHEET: ${name} ---\n`;
-                // Simple CSV-like dump
-                raw.values.forEach((row: any[]) => {
-                    formattedString += row.map((c: any) => String(c).replace(/,/g, ';')).join(' | ') + '\n';
-                });
-                formattedString += `\n`;
-            }
-        });
-    }
-
-    const result = {
+    const result: DataContext = {
         weighIns: recentWeighIns,
         lifts: recentLifts,
         cardio: recentCardio,
-        nutrition: allNutrition.slice(-100),
+        nutrition: allNutrition.slice(-30), // Reduce from 100 to 30
         eaglesPeakLogs: eaglesPeakLogs.slice(-10),
+        hydrationLogs,
+        wellnessLogs,
         userProfile,
-        formattedString,
+        formattedString: '', // Will be set below
+        extraSheets
     };
+
+    // Use shared formatter
+    result.formattedString = formatDataContext(result);
 
     DataCache.set(sheetId, result);
     return result;
@@ -560,3 +515,103 @@ export async function appendEaglesPeakLog(data: EaglesPeakLog, sheetIdOverride?:
 
     DataCache.clear(sheetId);
 }
+
+// Hydration Logging
+export async function appendHydration(data: HydrationLog, sheetId: string) {
+    const { auth } = await getAuth(sheetId);
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Ensure Sheet Exists
+    try {
+        await sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: 'Hydration!A1',
+        });
+    } catch (e: any) {
+        // Create if missing
+        console.log("Creating Hydration sheet...");
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+                requests: [{
+                    addSheet: {
+                        properties: { title: 'Hydration' }
+                    }
+                }]
+            }
+        });
+        // Add Headers
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: sheetId,
+            range: 'Hydration!A1',
+            valueInputOption: 'RAW',
+            requestBody: {
+                values: [['Date', 'Time', 'Amount (oz)', 'Source']]
+            }
+        });
+    }
+
+    // Append Data
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: 'Hydration!A:D',
+        valueInputOption: 'RAW',
+        requestBody: {
+            values: [[data.date, data.time, data.amount, data.source]]
+        }
+    });
+
+    // Invalidate Cache
+    DataCache.clear(sheetId);
+}
+
+// Wellness Logging
+export async function appendWellness(data: WellnessLog, sheetId: string) {
+    const { auth } = await getAuth(sheetId);
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Ensure Sheet Exists
+    try {
+        await sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: 'Wellness!A1',
+        });
+    } catch (e: any) {
+        // Create if missing
+        console.log("Creating Wellness sheet...");
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+                requests: [{
+                    addSheet: {
+                        properties: { title: 'Wellness' }
+                    }
+                }]
+            }
+        });
+        // Add Headers
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: sheetId,
+            range: 'Wellness!A1',
+            valueInputOption: 'RAW',
+            requestBody: {
+                values: [['Date', 'Mood (1-5)', 'Notes']]
+            }
+        });
+    }
+
+    // Append Data
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: 'Wellness!A:C', // Reduced range
+        valueInputOption: 'RAW',
+        requestBody: {
+            values: [[data.date, data.mood, data.notes]]
+        }
+    });
+
+    // Invalidate Cache
+    DataCache.clear(sheetId);
+}
+
+

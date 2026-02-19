@@ -57,12 +57,28 @@ export interface EaglesPeakLog {
     notes: string;
 }
 
+export interface HydrationLog {
+    date: string;
+    time: string;
+    amount: string; // stored as string in sheets typically, parsed to number
+    source: string;
+}
+
+export interface WellnessLog {
+    date: string;
+    mood: string; // 1-5
+    energy: string; // 1-5
+    notes: string;
+}
+
 export interface DataContext {
     weighIns: WeighIn[];
     lifts: Lift[];
     cardio: Cardio[];
     nutrition: Nutrition[];
     eaglesPeakLogs: EaglesPeakLog[];
+    hydrationLogs: HydrationLog[];
+    wellnessLogs: WellnessLog[];
     userProfile?: UserProfile; // New optional profile
     formattedString: string;
     [key: string]: unknown;
@@ -99,6 +115,7 @@ export interface UserProfile {
         hideBodyFat?: boolean;
         hideNutrition?: boolean;
         showEaglesPeak?: boolean;
+        hydrationTarget?: number; // oz
     };
     [key: string]: unknown;
 }

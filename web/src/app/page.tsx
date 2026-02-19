@@ -77,10 +77,10 @@ export default function Page() {
     refreshData();
   }, []);
 
-  const refreshData = async () => {
-    console.log("Refreshing data...");
+  const refreshData = async (force: boolean = false) => {
+    console.log("Refreshing data...", force ? "(Forced)" : "");
     try {
-      const response = await fetch('/api/data');
+      const response = await fetch(`/api/data${force ? '?refresh=true' : ''}`);
       const data = await response.json();
       console.log("Data received:", data);
 
@@ -94,12 +94,15 @@ export default function Page() {
       processStats(data.weighIns, data.nutrition, data.userProfile, data.cardio);
 
       // Build Context String
+      // Build Context String
       const context: DataContext = {
         weighIns: data.weighIns || [],
         lifts: data.lifts || [],
         cardio: data.cardio || [],
         nutrition: data.nutrition || [],
         eaglesPeakLogs: data.eaglesPeakLogs || [],
+        hydrationLogs: data.hydrationLogs || [], // Add
+        wellnessLogs: data.wellnessLogs || [], // Add
         userProfile: data.userProfile,
         formattedString: `Current Weight: ${data.weighIns?.[0]?.weight || 'N/A'} lbs.`
       };
@@ -393,7 +396,7 @@ export default function Page() {
       if (!response.ok) throw new Error('Failed to log');
 
       // Refresh Data
-      await refreshData();
+      await refreshData(true);
       setIsLogModalOpen(false);
       toast.success("Log saved!", { id: toastId });
 
@@ -406,18 +409,74 @@ export default function Page() {
   };
 
   const handleProfileSave = async () => {
-    await refreshData();
+    await refreshData(true);
     setIsProfileOpen(false);
     setIsSettingsOpen(false); // They might be in settings
     toast.success("Profile updated.");
   };
 
   const handleSettingsSave = async () => {
-    await refreshData(); // Reload prefs
+    await refreshData(true); // Reload prefs
     setIsSettingsOpen(false);
     toast.success("Settings saved.");
   }
 
+  // --- Wellness Handlers ---
+  // --- Wellness Handlers ---
+  const handleLogHydration = async (amount: number) => {
+    const now = new Date();
+    const date = now.toLocaleDateString('en-US'); // Ensure matching locale with other logs
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Optimistic Update
+    const newLog: any = { date, time, amount: amount.toString(), source: 'Quick Add' };
+    if (dataContext) {
+      setDataContext({
+        ...dataContext,
+        hydrationLogs: [...(dataContext.hydrationLogs || []), newLog]
+      });
+    }
+
+    try {
+      await fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'hydration',
+          data: {
+            date,
+            time,
+            amount,
+            source: 'Quick Add'
+          }
+        })
+      });
+      // Background refresh to confirm
+      refreshData(true);
+    } catch (e) {
+      console.error("Failed to log hydration", e);
+      toast.error("Failed to save hydration. Refreshing...");
+      refreshData(true); // Revert on failure
+    }
+  };
+
+  const handleLogWellness = async (mood: number, energy: number, notes: string) => {
+    const date = new Date().toLocaleDateString('en-US');
+    await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'wellness',
+        data: {
+          date,
+          mood,
+          energy,
+          notes
+        }
+      })
+    });
+    await refreshData(true);
+  };
 
   return (
     <div className="flex fixed inset-0 bg-[#050505] text-white overflow-hidden font-sans selection:bg-emerald-500/30">
@@ -449,132 +508,84 @@ export default function Page() {
           onClose={() => setIsLogModalOpen(false)}
           type={logModalType}
           onSave={handleLogSubmit}
-          lifts={dataContext?.lifts}
           preferences={dataContext?.userProfile?.preferences}
-        />
-      </DataContextState.Provider>
-
-
-      {/* LEFT COLUMN: Chat Interface */}
-      {/* Hidden on mobile if tab is dashboard */}
-      <div className={`flex-1 flex flex-col min-w-0 max-w-full md:max-w-none transition-all duration-300 ${mobileTab === 'chat' ? 'flex' : 'hidden'} md:flex relative`}>
-
-        {/* Header */}
-        <div className="absolute top-0 z-50 w-full p-4 pt-6 md:p-6 md:pt-8 flex justify-between items-center bg-gradient-to-b from-[#050505] via-[#050505]/80 to-transparent backdrop-blur-[2px]">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.8)]"></div>
-            <div>
-              <h1 className="font-bold text-base md:text-lg tracking-tight text-white/90">PROJECT: EXCELSIOR</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsProfileOpen(true)}
-              className={`transition-colors mr-2 p-1 rounded-full ${!dataContext?.userProfile?.name ? 'animate-pulse text-emerald-400 ring-2 ring-emerald-500/50 bg-emerald-500/10' : 'text-zinc-500 hover:text-white'}`}
-              title={!dataContext?.userProfile?.name ? "Setup Profile (Required)" : "Profile & Avatar"}
-            >
-              <UserCircle size={20} />
-            </button>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="text-zinc-500 hover:text-white transition-colors"
-            >
-              <Settings size={18} />
-            </button>
-            {/* Streak Flame */}
-
-
-            <div className="hidden md:block text-[10px] font-mono text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded border border-zinc-800/50">
-              V2.3 • GEMINI 2.5
-            </div>
-          </div>
-
-        </div>
-
-        {/* Chat Area */}
-        {/* Added flex-col and min-h-0 to constrain ChatInterface scrolling */}
-        <div className="flex-1 flex flex-col min-h-0 pb-24 md:pb-4 px-4 md:px-0">
-          <ChatInterface
-            messages={messages}
-            isLoading={isLoading}
-            messagesEndRef={messagesEndRef}
-            userAvatar={dataContext?.userProfile?.userAvatar}
-            coachAvatar={dataContext?.userProfile?.customCoachAvatar}
-            coachName={dataContext?.userProfile?.customCoachName}
-            input={input}
-            setInput={setInput}
-            handleChatSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
-
-            // Image Props
-            selectedImage={selectedImage}
-            setSelectedImage={setSelectedImage}
-            onImageSelect={handleImageSelect}
-          />
-        </div>
-
-        {/* Input Area */}
-
-
-        {/* Weekly Report Button (Testing) */}
-        {/* <div className="absolute top-20 right-4 z-50">
-           <button onClick={() => handleGenerateReport(true)} className="text-[10px] bg-red-900/20 text-red-500 border border-red-500/20 px-2 py-1 rounded">Debug: Weekly</button>
-        </div> */}
-
-      </div>
-
-      {/* RIGHT COLUMN: Dashboard */}
-      {/* Hidden on mobile if tab is chat */}
-      <div className={`${mobileTab === 'dashboard' ? 'flex' : 'hidden'} md:flex w-full md:w-auto h-full`}>
-        <Dashboard
-          currentWeight={currentWeight}
-          currentBF={currentBF}
-          avgWeight={avgWeight}
-          avgBF={avgBF}
-          graphData={graphData}
-          nutritionGraphData={nutritionGraphData}
-          onOpenLogModal={handleOpenLogModal}
-
-          netCalories={netCalories}
-          caloriesIn={caloriesIn}
-          proteinIn={proteinIn}
-          proteinTarget={proteinTarget}
-          activityBurn={activityBurn}
-
           lifts={lifts}
-          eaglesPeakLogs={eaglesPeakLogs}
-          cardio={cardio}
-          weighIns={weighIns}
-          nutrition={nutrition}
-          preferences={dataContext?.userProfile?.preferences}
-
-          // Just satisfy the type for now if needed, or update type
-          filteredActivity={[]}
         />
-      </div>
 
+        {/* Mobile Tab Nav */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-zinc-900 border-t border-zinc-800 z-50 flex justify-around items-center">
+          <button onClick={() => setMobileTab('chat')} className={`flex flex-col items-center ${mobileTab === 'chat' ? 'text-white' : 'text-zinc-500'}`}>
+            <MessageSquare size={20} />
+            <span className="text-[10px] uppercase font-bold mt-1">Chat</span>
+          </button>
+          <button onClick={() => setIsLogModalOpen(true)} className="bg-emerald-500 text-black p-3 rounded-full -mt-6 border-4 border-[#050505]">
+            <Plus size={24} />
+          </button>
+          <button onClick={() => setMobileTab('dashboard')} className={`flex flex-col items-center ${mobileTab === 'dashboard' ? 'text-white' : 'text-zinc-500'}`}>
+            <LayoutDashboard size={20} />
+            <span className="text-[10px] uppercase font-bold mt-1">Stats</span>
+          </button>
+        </div>
 
-      {/* MOBILE BOTTOM NAVIGATION */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-2 bg-zinc-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-zinc-800/50 shadow-2xl z-50">
-        <button
-          onClick={() => setMobileTab('chat')}
-          className={`p-3 rounded-xl transition-all ${mobileTab === 'chat' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-        >
-          <MessageSquare size={20} />
-        </button>
-        <button
-          onClick={() => setMobileTab('dashboard')}
-          className={`p-3 rounded-xl transition-all ${mobileTab === 'dashboard' ? 'bg-zinc-800 text-emerald-400 shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-        >
-          <LayoutDashboard size={20} />
-        </button>
-        {/* FAB for Quick Log on Mobile */}
-        <button
-          onClick={() => setIsLogModalOpen(true)}
-          className="p-3 rounded-xl bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform"
-        >
-          <Plus size={20} strokeWidth={3} />
-        </button>
-      </div>
+        {/* Desktop Layout */}
+        <div className="flex w-full h-full">
+
+          {/* LEFT: Chat Interface (Hidden on mobile unless tab active) */}
+          <div className={`${mobileTab === 'chat' ? 'flex' : 'hidden'} md:flex flex-1 h-full relative`}>
+            <ChatInterface
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              handleChatSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
+              isLoading={isLoading}
+              selectedImage={selectedImage}
+              onImageSelect={handleImageSelect}
+
+              messagesEndRef={messagesEndRef}
+              coachMode={dataContext?.userProfile?.coachMode}
+              userAvatar={dataContext?.userProfile?.userAvatar}
+              coachAvatar={dataContext?.userProfile?.customCoachAvatar}
+              coachName={dataContext?.userProfile?.customCoachName}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenProfile={() => setIsProfileOpen(true)}
+            />
+          </div>
+
+          {/* RIGHT: Dashboard (Hidden on mobile unless tab active) */}
+          <div className={`${mobileTab === 'dashboard' ? 'flex' : 'hidden'} md:flex w-full md:w-[600px] h-full z-20`}>
+            <Dashboard
+              currentWeight={currentWeight}
+              currentBF={currentBF}
+              avgWeight={avgWeight}
+              avgBF={avgBF}
+              graphData={graphData}
+              nutritionGraphData={nutritionGraphData}
+              onOpenLogModal={handleOpenLogModal}
+
+              netCalories={netCalories}
+              caloriesIn={caloriesIn}
+              proteinIn={proteinIn}
+              proteinTarget={proteinTarget}
+              activityBurn={activityBurn}
+              filteredActivity={cardio}
+
+              lifts={lifts}
+              eaglesPeakLogs={eaglesPeakLogs}
+              cardio={cardio}
+              weighIns={weighIns}
+              nutrition={nutrition}
+              preferences={dataContext?.userProfile?.preferences}
+
+              // [NEW] Wellness Props
+              hydrationLogs={dataContext?.hydrationLogs || []}
+              wellnessLogs={dataContext?.wellnessLogs || []}
+              onLogHydration={handleLogHydration}
+              onLogWellness={handleLogWellness}
+            />
+          </div>
+
+        </div>
+      </DataContextState.Provider>
 
       <FeedbackBox />
     </div>

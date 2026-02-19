@@ -1,7 +1,7 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Activity, User, Sparkles, Paperclip, X } from 'lucide-react';
+import { Send, Activity, User, Sparkles, Paperclip, X, Settings } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { AvatarImg } from './ui/AvatarImg';
 
@@ -15,16 +15,20 @@ interface ChatInterfaceProps {
     messagesEndRef?: React.RefObject<HTMLDivElement | null>;
     bottomRef?: React.RefObject<HTMLDivElement | null>;
 
+    // Coach & User Props
+    coachMode?: 'clara' | 'cole' | 'atlas' | 'ember';
+    userAvatar?: string;
+    coachAvatar?: string;
+    coachName?: string;
+
     // New Image Props
     selectedImage?: string | null;
     setSelectedImage?: (img: string | null) => void;
     onImageSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
 
-    coachMode?: 'clara' | 'cole' | 'atlas' | 'ember';
-    userAvatar?: string;
-    coachAvatar?: string;
-    coachName?: string;
+    onOpenSettings?: () => void;
+    onOpenProfile?: () => void;
 }
 
 const AVATAR_MAP = {
@@ -37,14 +41,45 @@ const AVATAR_MAP = {
 export function ChatInterface({
     messages, input, setInput, isLoading, handleChatSubmit, bottomRef, messagesEndRef, coachMode = 'clara',
     userAvatar, coachAvatar, coachName,
-    selectedImage, setSelectedImage, onImageSelect, onPaste
+    selectedImage, setSelectedImage, onImageSelect, onPaste,
+    onOpenSettings, onOpenProfile
 }: ChatInterfaceProps) {
     // Use messagesEndRef if provided, distinct from bottomRef for backward compat
     const ref = bottomRef || messagesEndRef;
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     return (
         <div className="flex-1 flex flex-col relative w-full md:min-w-[500px] min-h-0">
-            {/* Header Removed - managed by parent */}
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#050505] via-[#050505]/80 to-transparent z-10 flex items-start justify-between px-8 pt-8 pointer-events-none">
+                <div className="pointer-events-auto">
+                    <h1 className="text-2xl font-black tracking-tighter text-white/90">
+                        PROJECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500">EXCELSIOR</span>
+                    </h1>
+                </div>
+
+                <div className="flex items-center gap-6 pointer-events-auto">
+                    <div className="flex gap-4">
+                        <button
+                            onClick={onOpenProfile}
+                            className="text-zinc-500 hover:text-white transition-colors"
+                            title="Profile"
+                        >
+                            <User size={20} strokeWidth={1.5} />
+                        </button>
+                        <button
+                            onClick={onOpenSettings}
+                            className="text-zinc-500 hover:text-white transition-colors"
+                            title="Settings"
+                        >
+                            <Settings size={20} strokeWidth={1.5} />
+                        </button>
+                    </div>
+                    {/* Version Badge */}
+                    <div className="px-3 py-1.5 rounded-lg border border-zinc-800 bg-black/40 text-[9px] font-bold text-zinc-500 tracking-wider">
+                        V2.3 • GEMINI 2.5
+                    </div>
+                </div>
+            </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto pt-24 pb-8 px-8 scroll-smooth">

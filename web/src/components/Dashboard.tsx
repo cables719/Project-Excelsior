@@ -1,13 +1,14 @@
 import React from 'react';
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, Scatter, Bar, CartesianGrid, Cell } from 'recharts';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, Scatter, Bar, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 import { Activity, Plus, Scale, Utensils, Dumbbell, Heart, Mountain } from 'lucide-react';
 import { StatCard } from './ui/StatCard';
 import { NutritionOverview } from './NutritionOverview';
+import { WellnessCard } from './WellnessCard'; // Import
 import { CustomTooltip, NoteTooltip } from './ui/Tooltips';
-import { DataContext, Lift, EaglesPeakLog } from '@/lib/types';
+import { DataContext, Lift, EaglesPeakLog, HydrationLog, WellnessLog } from '@/lib/types';
 import { processLifts, aggregateDailyBest, processEaglesPeakData, calculateStreak, determinePersonalBests } from '@/lib/analytics';
 import { WilksGauge } from './WilksGauge';
-import { Trophy, TrendingUp, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, Calendar } from 'lucide-react'; // Removed ReferenceLine from lucide, it's recharts.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface DashboardProps {
@@ -31,6 +32,12 @@ interface DashboardProps {
     // New Modal Handler
     onOpenLogModal: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
 
+    // Wellness Props
+    hydrationLogs?: HydrationLog[];
+    wellnessLogs?: WellnessLog[];
+    onLogHydration?: (amount: number) => Promise<void>;
+    onLogWellness?: (mood: number, energy: number, notes: string) => Promise<void>;
+
     // Deprecated / unused props can be removed or kept as optional/any for compatibility
     // keeping them loose for now to prevent strict breakages if parent passes them
     [key: string]: any;
@@ -40,10 +47,11 @@ export function Dashboard({
     currentWeight, currentBF, avgWeight, avgBF, graphData, nutritionGraphData,
     onOpenLogModal,
     netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity, preferences,
-    lifts = [], eaglesPeakLogs = [], cardio = [], weighIns = [], nutrition = []
+    lifts = [], eaglesPeakLogs = [], cardio = [], weighIns = [], nutrition = [],
+    hydrationLogs = [], wellnessLogs = [], onLogHydration = async () => { }, onLogWellness = async () => { }
 }: DashboardProps) {
 
-    const [activeGraph, setActiveGraph] = React.useState<'biometrics' | 'nutrition' | 'exercise' | 'eagles-peak'>('biometrics');
+    const [activeGraph, setActiveGraph] = React.useState<'biometrics' | 'nutrition' | 'exercise' | 'eagles-peak' | 'wellness'>('biometrics');
     const [showEaglesPeak, setShowEaglesPeak] = React.useState(false);
 
     // Initialize Local Preferences
@@ -111,6 +119,8 @@ export function Dashboard({
             weighIns,
             eaglesPeakLogs,
             nutrition: [],
+            hydrationLogs: [],
+            wellnessLogs: [],
             userProfile: {},
             formattedString: ''
         });
@@ -136,7 +146,7 @@ export function Dashboard({
             {/* Using pt-6 md:pt-8 to match Chat Header padding for alignment */}
             <div className="flex-1 overflow-y-auto pt-6 px-4 pb-20 md:pt-8 md:px-8 md:pb-8 space-y-6 md:space-y-10 custom-scrollbar">
 
-                {/* 1. Header & Stats */}
+                {/* 1. Updated Header & Stats */}
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
                         <div>
@@ -146,9 +156,6 @@ export function Dashboard({
                             </p>
                         </div>
                     </div>
-
-
-
 
                 </div>
                 {/* Original Biometrics section, now outside the grid for GladiatorCard */}
@@ -211,6 +218,14 @@ export function Dashboard({
                                     Peak
                                 </button>
                             )}
+
+                            <button
+                                onClick={() => setActiveGraph('wellness')}
+                                className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'wellness' ? 'text-blue-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                            >
+                                Wellness
+                            </button>
+
                         </div>
 
                         {activeGraph === 'biometrics' ? (
@@ -374,7 +389,10 @@ export function Dashboard({
 
                                             {/* 3. Protein Line (Right Axis) */}
                                             {showProtein && (
-                                                <Line yAxisId="right" type="monotone" dataKey="protein" stroke="#f59e0b" strokeWidth={2} dot={false} strokeOpacity={0.8} />
+                                                <>
+                                                    <ReferenceLine y={proteinTarget} yAxisId="right" stroke="#f59e0b" strokeDasharray="3 3" opacity={0.5} />
+                                                    <Line yAxisId="right" type="monotone" dataKey="protein" stroke="#f59e0b" strokeWidth={2} dot={false} strokeOpacity={0.8} />
+                                                </>
                                             )}
                                         </ComposedChart>
                                     </ResponsiveContainer>
@@ -510,7 +528,7 @@ export function Dashboard({
                                     <WilksGauge currentWeight={parseFloat(currentWeight) || 180} lifts={lifts} />
                                 </div>
                             </>
-                        ) : (
+                        ) : activeGraph === 'eagles-peak' ? (
 
                             /* GRAPH 5: Eagles Peak */
                             <>
@@ -607,6 +625,17 @@ export function Dashboard({
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
+                            </>
+                        ) : (
+                            /* GRAPH 6: Wellness */
+                            <>
+                                <WellnessCard
+                                    hydrationLogs={hydrationLogs}
+                                    wellnessLogs={wellnessLogs}
+                                    onLogHydration={onLogHydration}
+                                    onLogWellness={onLogWellness}
+                                    hydrationTarget={preferences?.hydrationTarget}
+                                />
                             </>
                         )}
                     </div>
@@ -835,6 +864,6 @@ export function Dashboard({
                 </div>
 
             </div>
-        </div>
+        </div >
     );
 }

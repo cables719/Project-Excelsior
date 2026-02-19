@@ -84,6 +84,36 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
         }
     };
 
+    // Helper for Smart Hydration
+    const detectHydration = (text: string): number | null => {
+        const lower = text.toLowerCase();
+
+        // Explicit Overrides
+        if (lower.includes('homemade') && lower.includes('shake')) return 18;
+
+        // Keywords
+        if (lower.includes('shake') || lower.includes('smoothie')) return 12;
+        if (lower.includes('coffee') || lower.includes('tea')) return 12;
+        if (lower.includes('milk') || lower.includes('juice') || lower.includes('soda') || lower.includes('drink')) return 8;
+        if (lower.includes('water')) return 12;
+
+        // Regex for Units
+        const ozMatch = lower.match(/(\d+)\s*(fl\s*)?oz/);
+        if (ozMatch && ozMatch[1]) return parseInt(ozMatch[1]);
+
+        const cupMatch = lower.match(/(\d+)\s*cup/);
+        if (cupMatch && cupMatch[1]) return parseInt(cupMatch[1]) * 8;
+
+        const pintMatch = lower.match(/(\d+)\s*pint/);
+        if (pintMatch && pintMatch[1]) return parseInt(pintMatch[1]) * 16;
+
+        // Single unit words
+        if (lower.includes('cup')) return 8;
+        if (lower.includes('pint')) return 16;
+
+        return null;
+    };
+
     const handleSubmit = async (e: React.FormEvent, typeOverride?: string) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -94,23 +124,62 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
             const now = new Date();
             const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            let payload: any = { type: activeType, date: logDate };
+            let payload: any = { type: activeType, data: { date: logDate, ...weighInForm } }; // Default, refined below
 
-            if (activeType === 'weigh-in') payload = { ...payload, ...weighInForm };
-            else if (activeType === 'lift') payload = { ...payload, ...liftForm };
-            else if (activeType === 'cardio') payload = { ...payload, ...cardioForm };
+            // Fix Payload Construction to match API expectation { type, data }
+            // The handleLogSubmit expects the *inner* data object or the full wrapper?
+            // Page.tsx: handleLogSubmit(data) -> body: { type: data.type, data: data }
+            // So LogModal passes a flat object representing the Log?
+            // Page.tsx: payload = { ...payload, type: activeType }
+
+            // Let's look at Page.tsx again.
+            // handleLogSubmit takes `data`.
+            // Inside: body: { type: data.type, data: data }
+            // So `data` passed to onSave MUST have a `type` field.
+
+            // Re-constructing payload logic from original file to be safe:
+            let submitData: any = { type: activeType, date: logDate };
+
+            if (activeType === 'weigh-in') submitData = { ...submitData, ...weighInForm };
+            else if (activeType === 'lift') submitData = { ...submitData, ...liftForm };
+            else if (activeType === 'cardio') submitData = { ...submitData, ...cardioForm };
             else if (activeType === 'nutrition') {
-                payload = {
-                    ...payload,
+                const itemEntry = foodAnalysis?.item_name || foodInput;
+                submitData = {
+                    ...submitData,
                     ...foodAnalysis,
                     time: timeString,
-                    item: foodAnalysis?.item_name || foodInput, // Prioritize analysis, fallback to input
+                    item: itemEntry, // Prioritize analysis, fallback to input
                     notes: foodInput,
-                    description: foodInput // Keep raw description if needed by backend, though 'item' is the sheet column
+                    description: foodInput
                 };
+
+                // [SMART HYDRATION]
+                const fluidAmount = detectHydration(itemEntry + " " + foodInput);
+                if (fluidAmount) {
+                    // Log Hydration independently first
+                    try {
+                        await fetch('/api/log', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'hydration',
+                                data: {
+                                    date: logDate,
+                                    time: timeString,
+                                    amount: fluidAmount,
+                                    source: 'Auto: ' + itemEntry
+                                }
+                            })
+                        });
+                        toast.success(`+${fluidAmount}oz Fluid Auto-Logged! 💧`);
+                    } catch (err) {
+                        console.error("Auto-hydration failed", err);
+                    }
+                }
             }
 
-            await onSave(payload);
+            await onSave(submitData);
 
             // Reset Forms
             resetForms();

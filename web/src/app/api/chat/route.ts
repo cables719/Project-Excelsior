@@ -7,12 +7,13 @@ import { getRecentHistory, appendExchange } from '@/lib/memory';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getUserConfig } from "@/lib/user-store";
+import { formatDataContext } from '@/lib/format-context';
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
     // console.log('[API] Chat request received');
-    const { messages, clientDate } = await req.json();
+    const { messages, clientDate, dataContext } = await req.json();
 
     // 1. Fetch real-time data
     const session = await getServerSession(authOptions);
@@ -31,16 +32,29 @@ export async function POST(req: Request) {
     let history: any[] = [];
 
     try {
-        if (config?.sheetId) {
-            // [OPTIMIZATION] Reduced from 365 days to 30 days
-            rawData = await fetchContext(30, config.sheetId);
-            contextString = rawData.formattedString;
+        if (dataContext) {
+            // [OPTIMIZATION] Use client-provided context (fresh & saves API call)
+            // console.log('[API] Using client-provided context.');
+            rawData = dataContext;
 
-            // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
-            history = await getRecentHistory(30, config.sheetId);
+            // [FIX] Always regenerate the string from the raw data to ensure freshness and formatting
+            // This ignores the stale 'formattedString' sent by the client and rebuilds it fresh.
+            contextString = formatDataContext(dataContext);
+
+        } else if (config?.sheetId) {
+            // [OPTIMIZATION] Reduced from 365 days to 7 days for fallback
+            console.log('[API] Fetching context from fallback');
+            rawData = await fetchContext(7, config.sheetId);
+            contextString = formatDataContext(rawData);
         } else {
             // No sheet, no context.
             contextString = "[No personal data available. User has not linked a Google Sheet.]";
+        }
+
+
+        if (config?.sheetId) {
+            // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
+            history = await getRecentHistory(30, config.sheetId);
         }
     } catch (error) {
         console.error('[API] Error fetching context:', error);
@@ -59,8 +73,6 @@ ${contextString}
 (Use this to maintain continuity. If empty, this is the first session.)
 ${historyText}
 `;
-
-    console.log('[API] content prepared, starting generation...');
 
     // 3. Generate Response (Non-Streaming)
     // Switching to 2.0-flash-lite (Stable Alias) -> Using 2.5 flash as before
