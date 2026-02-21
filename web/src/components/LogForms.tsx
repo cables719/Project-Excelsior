@@ -261,7 +261,7 @@ export function LogForms({
                                         {filteredExercises.map(ex => (
                                             <div
                                                 key={ex}
-                                                onClick={() => handleSelectExercise(ex)}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSelectExercise(ex); }}
                                                 className="px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-900 cursor-pointer transition-colors"
                                             >
                                                 {ex}
@@ -364,7 +364,7 @@ export function LogForms({
                                         {filteredFoods.map(food => (
                                             <div
                                                 key={food}
-                                                onClick={() => handleSelectFood(food)}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSelectFood(food); }}
                                                 className="px-4 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-900 cursor-pointer transition-colors"
                                             >
                                                 {food}

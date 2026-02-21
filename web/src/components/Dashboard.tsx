@@ -110,7 +110,10 @@ export function Dashboard({
         if (preferences?.hideNutrition && activeGraph === 'nutrition') {
             setActiveGraph('biometrics');
         }
-    }, [preferences?.hideNutrition, activeGraph]);
+        if (!preferences?.showWellness && activeGraph === 'wellness') {
+            setActiveGraph('biometrics');
+        }
+    }, [preferences?.hideNutrition, preferences?.showWellness, activeGraph]);
 
     const streak = React.useMemo(() => {
         return calculateStreak({
@@ -219,12 +222,14 @@ export function Dashboard({
                                 </button>
                             )}
 
-                            <button
-                                onClick={() => setActiveGraph('wellness')}
-                                className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'wellness' ? 'text-blue-400' : 'text-zinc-600 hover:text-zinc-400'}`}
-                            >
-                                Wellness
-                            </button>
+                            {preferences?.showWellness && (
+                                <button
+                                    onClick={() => setActiveGraph('wellness')}
+                                    className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'wellness' ? 'text-blue-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                >
+                                    Wellness
+                                </button>
+                            )}
 
                         </div>
 
@@ -714,7 +719,9 @@ export function Dashboard({
                                             ...lifts.map(i => ({ ...i, type: 'lift' })),
                                             ...cardio.map(i => ({ ...i, type: 'cardio' })),
                                             ...nutrition.map(i => ({ ...i, type: 'nutrition' })),
-                                            ...eaglesPeakLogs.map(i => ({ ...i, type: 'eagles-peak' }))
+                                            ...eaglesPeakLogs.map(i => ({ ...i, type: 'eagles-peak' })),
+                                            ...(hydrationLogs || []).map(i => ({ ...i, type: 'hydration' })),
+                                            ...(wellnessLogs || []).map(i => ({ ...i, type: 'wellness' }))
                                         ];
 
                                         // Filter by active graph
@@ -726,6 +733,8 @@ export function Dashboard({
                                             localActivity = combined.filter(i => i.type === 'nutrition');
                                         } else if (activeGraph === 'eagles-peak') {
                                             localActivity = combined.filter(i => i.type === 'eagles-peak');
+                                        } else if (activeGraph === 'wellness') {
+                                            localActivity = combined.filter(i => i.type === 'wellness' || i.type === 'hydration');
                                         }
 
                                         // Sort by date descending
@@ -780,6 +789,8 @@ export function Dashboard({
                                                             {item.type === 'lift' && item.exercise}
                                                             {item.type === 'nutrition' && <span className="text-zinc-500 italic">Nutrition</span>}
                                                             {item.type === 'eagles-peak' && <span className="text-amber-600">Eagles Peak</span>}
+                                                            {item.type === 'wellness' && <span className="text-blue-300">Mood: {item.mood}/5</span>}
+                                                            {item.type === 'hydration' && <span className="text-cyan-400">Hydration</span>}
                                                         </td>
 
                                                         {/* VALUES COLUMN - COMPACT */}
@@ -827,10 +838,19 @@ export function Dashboard({
                                                                     <span className="text-white">
                                                                         {item.ascentTime?.split(':').length >= 3 ? item.ascentTime.split(':').slice(0, 2).join(':') : item.ascentTime}
                                                                     </span>
-                                                                    <span className="text-zinc-600 mx-1">/</span>
-                                                                    <span className="text-amber-500">
-                                                                        {Math.floor(item.ascent)}m
-                                                                    </span>
+                                                                    {item.ascent && !isNaN(Number(item.ascent)) && (
+                                                                        <>
+                                                                            <span className="text-zinc-600 mx-1">/</span>
+                                                                            <span className="text-amber-500">
+                                                                                {Math.floor(Number(item.ascent))}m
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </span>
+                                                            )}
+                                                            {item.type === 'hydration' && (
+                                                                <span>
+                                                                    <span className="text-cyan-300">+{item.amount}oz</span>
                                                                 </span>
                                                             )}
                                                         </td>

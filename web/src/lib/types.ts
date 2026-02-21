@@ -115,6 +115,7 @@ export interface UserProfile {
         hideBodyFat?: boolean;
         hideNutrition?: boolean;
         showEaglesPeak?: boolean;
+        showWellness?: boolean;
         hydrationTarget?: number; // oz
     };
     [key: string]: unknown;
