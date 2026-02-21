@@ -12,7 +12,6 @@ import { formatDataContext } from '@/lib/format-context';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-    // console.log('[API] Chat request received');
     const { messages, clientDate, dataContext } = await req.json();
 
     // 1. Fetch real-time data
@@ -43,7 +42,6 @@ export async function POST(req: Request) {
 
         } else if (config?.sheetId) {
             // [OPTIMIZATION] Reduced from 365 days to 7 days for fallback
-            console.log('[API] Fetching context from fallback');
             rawData = await fetchContext(7, config.sheetId);
             contextString = formatDataContext(rawData);
         } else {

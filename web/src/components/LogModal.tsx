@@ -124,21 +124,8 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
             const now = new Date();
             const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            let payload: any = { type: activeType, data: { date: logDate, ...weighInForm } }; // Default, refined below
-
-            // Fix Payload Construction to match API expectation { type, data }
-            // The handleLogSubmit expects the *inner* data object or the full wrapper?
-            // Page.tsx: handleLogSubmit(data) -> body: { type: data.type, data: data }
-            // So LogModal passes a flat object representing the Log?
-            // Page.tsx: payload = { ...payload, type: activeType }
-
-            // Let's look at Page.tsx again.
-            // handleLogSubmit takes `data`.
-            // Inside: body: { type: data.type, data: data }
-            // So `data` passed to onSave MUST have a `type` field.
-
             // Re-constructing payload logic from original file to be safe:
-            let submitData: any = { type: activeType, date: logDate };
+            let submitData: Record<string, unknown> = { type: activeType, date: logDate };
 
             if (activeType === 'weigh-in') submitData = { ...submitData, ...weighInForm };
             else if (activeType === 'lift') submitData = { ...submitData, ...liftForm };

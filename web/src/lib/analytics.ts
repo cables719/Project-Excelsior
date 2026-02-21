@@ -72,7 +72,7 @@ export function calculateStreak(data: DataContext): number {
 
     let streak = 0;
     const today = new Date();
-    let current = new Date(today);
+    const current = new Date(today);
 
     // Check if streak is active today or yesterday
     // If user hasn't logged today yet, but logged yesterday, streak is still alive.
@@ -233,10 +233,7 @@ export function calculateRPGStats(currentWeight: number, lifts: Lift[], cardio: 
     // Wilks 300 = Lvl 50. Wilks 600 = Lvl 99.
     // Bonus: 1 Level for every 5000lbs of weekly volume (max +10)
 
-    // Quick Wilks Calc
-    const squat = Math.max(0, ...lifts.filter(l => l.exercise.toLowerCase().includes('squat')).map(l => parseFloat(l.weight) || 0));
-    const bench = Math.max(0, ...lifts.filter(l => l.exercise.toLowerCase().includes('bench')).map(l => parseFloat(l.weight) || 0));
-    const dead = Math.max(0, ...lifts.filter(l => ['deadlift', 'dlift', 'dead'].some(n => l.exercise.toLowerCase().includes(n))).map(l => parseFloat(l.weight) || 0));
+    // Quick Wilks Calc uses E1RM directly below
 
     // Calculate e1RMs for a "Potential" STR score
     const getE1RM = (l: Lift) => {
@@ -262,7 +259,6 @@ export function calculateRPGStats(currentWeight: number, lifts: Lift[], cardio: 
     // Target: 150 mins/week = Lvl 50.
     const recentCardio = cardio.slice(-10); // Last 10 sessions
     const avgDuration = recentCardio.reduce((acc, c) => acc + (parseFloat(c.duration) || 0), 0) / (recentCardio.length || 1);
-    const totalDistance = recentCardio.reduce((acc, c) => acc + (parseFloat(c.distance) || 0), 0);
 
     let end = Math.min(99, Math.floor(avgDuration * 1.5)); // 30 mins avg = 45. 60 mins = 90.
 
@@ -270,7 +266,7 @@ export function calculateRPGStats(currentWeight: number, lifts: Lift[], cardio: 
     if (eaglesPeakLogs.length > 0) end += (eaglesPeakLogs.length * 2); // +2 levels per ascent!
 
     // 3. VIT: Consistency + Streak
-    const streak = calculateStreak({ lifts, cardio, weighIns, nutrition: [], eaglesPeakLogs, userProfile: {}, formattedString: '' });
+    const streak = calculateStreak({ lifts, cardio, weighIns, nutrition: [], eaglesPeakLogs, hydrationLogs: [], wellnessLogs: [], userProfile: {}, formattedString: '' });
     let vit = Math.min(99, streak * 2); // 25 day streak = 50.
     if (vit < 10 && weighIns.length > 5) vit = 15; // Baseline for logging at all
 
@@ -379,8 +375,8 @@ export function calculateMovingAverage<T extends { date: string;[key: string]: a
             avg = sum / validPoints.length;
         }
 
-        const result: any = { ...item };
+        const result = { ...item } as Record<string, unknown>;
         result[`${String(valueKey)}Avg`] = avg;
-        return result;
+        return result as T & { [key: string]: number | null };
     });
 }

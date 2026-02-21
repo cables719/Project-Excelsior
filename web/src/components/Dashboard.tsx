@@ -10,7 +10,7 @@ import { processLifts, aggregateDailyBest, processEaglesPeakData, calculateStrea
 import { WilksGauge } from './WilksGauge';
 import { Trophy, TrendingUp, Calendar } from 'lucide-react'; // Removed ReferenceLine from lucide, it's recharts.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 interface DashboardProps {
     currentWeight: string;
     currentBF: string;
@@ -98,7 +98,6 @@ export function Dashboard({
         return aggregateDailyBest(filtered);
     }, [lifts, selectedLift, liftFilter]);
 
-    // Graph Data Logic: Eagles Peak
     // Graph Data Logic: Eagles Peak
     const { processedEaglesPeakData, eaglesPeakTicks } = React.useMemo(() => {
         return processEaglesPeakData(eaglesPeakLogs);

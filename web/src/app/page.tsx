@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatInterface } from '../components/ChatInterface';
 import { Dashboard } from '../components/Dashboard';
 import { SettingsModal } from '../components/SettingsModal';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 import { ProfileModal } from '../components/ProfileModal';
 import { LogModal } from '../components/LogModal';
 import { FeedbackBox } from '../components/FeedbackBox';
@@ -168,7 +168,7 @@ export default function Page() {
   };
 
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const processStats = (wLogs: WeighIn[], nLogs: Nutrition[], profile: UserProfile, cLogs: Cardio[]) => {
     if (!wLogs || wLogs.length === 0) return;
 
@@ -178,56 +178,27 @@ export default function Page() {
     setCurrentBF(sortedW[0].bodyFat || '--');
 
     // 7 Day Moving Average for Weight & BF
-    // We need to map dates to values to fill gaps or just take recent entries
-    const now = new Date();
-    const last30Days = [];
-    let wSum = 0;
-    let bfSum = 0;
-    let wCount = 0;
-    let bfCount = 0;
-
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toLocaleDateString(); // Simple matching
-
-      // Find log for this day (or closest previous?) -> effectively simplest is just match
-      // But logs have time... assume YYYY-MM-DD or MM/DD/YYYY
-      // Data usually sorted desc, let's just map simplified dates
-
-      // Better approach for specific graph data:
-      // Use the actual logs, average them if multiple per day (rare)
-    }
-
-    // --- Data Processing for Graph & Stats ---
     // Sort Ascending for Moving Average Calc
     const ascendingW = [...sortedW].reverse();
 
     // Calculate 7-day Moving Averages
-    // Note: We use 7 *entries*. For a weight logger, this effectively smooths the trend.
-    // We cast to any to handle the dynamic property addition in the helper if strict types complain, 
-    // but the helper returns T & { [key: string]: number }.
     let processedPoints = calculateMovingAverage(ascendingW, 'weight', 7);
     processedPoints = calculateMovingAverage(processedPoints, 'bodyFat', 7);
 
     // Update Stats (Current Trend)
     if (processedPoints.length > 0) {
-      const last = processedPoints[processedPoints.length - 1];
-      // @ts-ignore - dynamic prop
+      const last = processedPoints[processedPoints.length - 1] as any;
       setAvgWeight(last.weightAvg || parseFloat(last.weight));
-      // @ts-ignore
       if (last.bodyFatAvg) setAvgBF(last.bodyFatAvg);
       else if (last.bodyFat) setAvgBF(parseFloat(last.bodyFat));
     }
 
     // Graph Data (Last 60 days)
-    const graphD = processedPoints.slice(-60).map(log => ({
+    const graphD = processedPoints.slice(-60).map((log: any) => ({
       date: log.date,
       weight: parseFloat(log.weight),
       bodyFat: log.bodyFat ? parseFloat(log.bodyFat) : null,
-      // @ts-ignore
       weightAvg: log.weightAvg,
-      // @ts-ignore
       bodyFatAvg: log.bodyFatAvg
     }));
     setGraphData(graphD);

@@ -156,7 +156,7 @@ export function getClaraSystemPrompt(context: DataContext | null, clientDate?: s
     // Select Persona
     const mode = (profile.coachMode || 'clara') as keyof typeof COACH_PERSONAS;
     // Base Prompt
-    let basePrompt = COACH_PERSONAS[mode]?.prompt || COACH_PERSONAS['clara'].prompt;
+    const basePrompt = COACH_PERSONAS[mode]?.prompt || COACH_PERSONAS['clara'].prompt;
 
 
 
