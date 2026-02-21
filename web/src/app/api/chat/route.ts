@@ -12,7 +12,7 @@ import { formatDataContext } from '@/lib/format-context';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-    const { messages, clientDate, dataContext } = await req.json();
+    const { messages, clientDate, dataContext, systemOverride } = await req.json();
 
     // 1. Fetch real-time data
     const session = await getServerSession(authOptions);
@@ -70,6 +70,8 @@ ${contextString}
 ### RECENT INTERACTION HISTORY
 (Use this to maintain continuity. If empty, this is the first session.)
 ${historyText}
+
+${systemOverride ? `### CRITICAL OVERRIDE INSTRUCTION\n${systemOverride}\n\n` : ''}
 `;
 
     // 3. Generate Response (Non-Streaming)

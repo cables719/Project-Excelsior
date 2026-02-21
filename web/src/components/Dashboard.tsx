@@ -1,6 +1,6 @@
 import React from 'react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, Scatter, Bar, CartesianGrid, Cell, ReferenceLine } from 'recharts';
-import { Activity, Plus, Scale, Utensils, Dumbbell, Heart, Mountain } from 'lucide-react';
+import { Activity, Plus, Scale, Utensils, Dumbbell, Heart, Mountain, Play } from 'lucide-react';
 import { StatCard } from './ui/StatCard';
 import { NutritionOverview } from './NutritionOverview';
 import { WellnessCard } from './WellnessCard'; // Import
@@ -10,7 +10,7 @@ import { processLifts, aggregateDailyBest, processEaglesPeakData, calculateStrea
 import { WilksGauge } from './WilksGauge';
 import { Trophy, TrendingUp, Calendar } from 'lucide-react'; // Removed ReferenceLine from lucide, it's recharts.
 
- 
+
 interface DashboardProps {
     currentWeight: string;
     currentBF: string;
@@ -31,6 +31,7 @@ interface DashboardProps {
 
     // New Modal Handler
     onOpenLogModal: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
+    onStartWorkout?: () => void;
 
     // Wellness Props
     hydrationLogs?: HydrationLog[];
@@ -45,7 +46,7 @@ interface DashboardProps {
 
 export function Dashboard({
     currentWeight, currentBF, avgWeight, avgBF, graphData, nutritionGraphData,
-    onOpenLogModal,
+    onOpenLogModal, onStartWorkout,
     netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity, preferences,
     lifts = [], eaglesPeakLogs = [], cardio = [], weighIns = [], nutrition = [],
     hydrationLogs = [], wellnessLogs = [], onLogHydration = async () => { }, onLogWellness = async () => { }
@@ -407,38 +408,54 @@ export function Dashboard({
                                 {/* Lift & Cardio Buttons */}
                                 <div className="space-y-4 mb-8">
                                     <button
-                                        onClick={() => onOpenLogModal('lift')}
-                                        className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                                        onClick={onStartWorkout}
+                                        className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 p-4 rounded-2xl flex items-center justify-between group transition-all"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <Dumbbell size={20} className="text-emerald-500" />
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <Play size={20} className="text-emerald-400" />
                                             </div>
                                             <div className="text-left">
-                                                <h3 className="text-sm font-bold text-white">Log Workout</h3>
-                                                <p className="text-[10px] text-zinc-500">Track lifts & reps</p>
+                                                <h3 className="text-sm font-bold text-emerald-100">Start Active Workout</h3>
+                                                <p className="text-[10px] text-emerald-400/80">Live mode with prediction & timer</p>
                                             </div>
                                         </div>
-                                        <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                                        <Play size={20} className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors" />
                                     </button>
 
-                                    {!preferences?.hideCardio && (
+                                    <div className="flex gap-4">
                                         <button
-                                            onClick={() => onOpenLogModal('cardio')}
-                                            className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                                            onClick={() => onOpenLogModal('lift')}
+                                            className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                    <Heart size={20} className="text-blue-500" />
+                                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <Dumbbell size={20} className="text-zinc-400" />
                                                 </div>
                                                 <div className="text-left">
-                                                    <h3 className="text-sm font-bold text-white">Log Cardio</h3>
-                                                    <p className="text-[10px] text-zinc-500">Track run, swim, row</p>
+                                                    <h3 className="text-sm font-bold text-white">Log Past Lift</h3>
                                                 </div>
                                             </div>
                                             <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
                                         </button>
-                                    )}
+
+                                        {!preferences?.hideCardio && (
+                                            <button
+                                                onClick={() => onOpenLogModal('cardio')}
+                                                className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Heart size={20} className="text-blue-500" />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <h3 className="text-sm font-bold text-white">Log Cardio</h3>
+                                                    </div>
+                                                </div>
+                                                <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 h-64 relative animate-in fade-in zoom-in-95 flex flex-col">

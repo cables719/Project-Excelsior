@@ -29,6 +29,9 @@ interface ChatInterfaceProps {
 
     onOpenSettings?: () => void;
     onOpenProfile?: () => void;
+
+    // New optional prop for embedding inside other components like ActiveWorkout
+    isEmbedded?: boolean;
 }
 
 const AVATAR_MAP = {
@@ -42,49 +45,51 @@ export function ChatInterface({
     messages, input, setInput, isLoading, handleChatSubmit, bottomRef, messagesEndRef, coachMode = 'clara',
     userAvatar, coachAvatar, coachName,
     selectedImage, setSelectedImage, onImageSelect, onPaste,
-    onOpenSettings, onOpenProfile
+    onOpenSettings, onOpenProfile, isEmbedded = false
 }: ChatInterfaceProps) {
     // Use messagesEndRef if provided, distinct from bottomRef for backward compat
     const ref = bottomRef || messagesEndRef;
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     return (
-        <div className="flex-1 flex flex-col relative w-full md:min-w-[500px] min-h-0">
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#050505] via-[#050505]/80 to-transparent z-10 flex items-start justify-between px-8 pt-8 pointer-events-none">
-                <div className="pointer-events-auto">
-                    <h1 className="text-2xl font-black tracking-tighter text-white/90">
-                        PROJECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500">EXCELSIOR</span>
-                    </h1>
-                </div>
+        <div className={`flex flex-col relative w-full h-full min-h-0 ${isEmbedded ? '' : 'flex-1 md:min-w-[500px]'}`}>
+            {/* Header - Hidden if embedded */}
+            {!isEmbedded && (
+                <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#050505] via-[#050505]/80 to-transparent z-10 flex items-start justify-between px-8 pt-8 pointer-events-none">
+                    <div className="pointer-events-auto">
+                        <h1 className="text-2xl font-black tracking-tighter text-white/90">
+                            PROJECT <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500">EXCELSIOR</span>
+                        </h1>
+                    </div>
 
-                <div className="flex items-center gap-6 pointer-events-auto">
-                    <div className="flex gap-4">
-                        <button
-                            onClick={onOpenProfile}
-                            className="text-zinc-500 hover:text-white transition-colors"
-                            title="Profile"
-                        >
-                            <User size={20} strokeWidth={1.5} />
-                        </button>
-                        <button
-                            onClick={onOpenSettings}
-                            className="text-zinc-500 hover:text-white transition-colors"
-                            title="Settings"
-                        >
-                            <Settings size={20} strokeWidth={1.5} />
-                        </button>
-                    </div>
-                    {/* Version Badge */}
-                    <div className="px-3 py-1.5 rounded-lg border border-zinc-800 bg-black/40 text-[9px] font-bold text-zinc-500 tracking-wider">
-                        V2.3 • GEMINI 2.5
+                    <div className="flex items-center gap-6 pointer-events-auto">
+                        <div className="flex gap-4">
+                            <button
+                                onClick={onOpenProfile}
+                                className="text-zinc-500 hover:text-white transition-colors"
+                                title="Profile"
+                            >
+                                <User size={20} strokeWidth={1.5} />
+                            </button>
+                            <button
+                                onClick={onOpenSettings}
+                                className="text-zinc-500 hover:text-white transition-colors"
+                                title="Settings"
+                            >
+                                <Settings size={20} strokeWidth={1.5} />
+                            </button>
+                        </div>
+                        {/* Version Badge */}
+                        <div className="px-3 py-1.5 rounded-lg border border-zinc-800 bg-black/40 text-[9px] font-bold text-zinc-500 tracking-wider">
+                            V2.3 • GEMINI 2.5
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto pt-24 pb-8 px-8 scroll-smooth">
+            <div className={`flex-1 overflow-y-auto ${isEmbedded ? 'pt-4 pb-4 px-4' : 'pt-24 pb-8 px-8'} scroll-smooth`}>
                 <div className="max-w-4xl mx-auto space-y-10">
-                    {messages.length === 0 && !isLoading && (
+                    {messages.length === 0 && !isLoading && !isEmbedded && (
                         <div className="flex flex-col items-center justify-center opacity-30 mt-12 md:mt-32 space-y-4 animate-pulse">
                             <img src="/logo.png" alt="Logo" className="w-80 h-80 opacity-100 mt-12" />
                             <p className="font-light tracking-wide text-lg">SYSTEM READY</p>
@@ -147,7 +152,7 @@ export function ChatInterface({
             </div>
 
             {/* Input Area */}
-            <div className="p-8 pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent">
+            <div className={`${isEmbedded ? 'p-4' : 'p-8 pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent'}`}>
                 <div className="max-w-4xl mx-auto">
                     {selectedImage && (
                         <div className="mb-2 relative inline-block">

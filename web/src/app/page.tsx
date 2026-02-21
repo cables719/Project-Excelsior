@@ -5,13 +5,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatInterface } from '../components/ChatInterface';
 import { Dashboard } from '../components/Dashboard';
 import { SettingsModal } from '../components/SettingsModal';
- 
+
 import { ProfileModal } from '../components/ProfileModal';
 import { LogModal } from '../components/LogModal';
 import { FeedbackBox } from '../components/FeedbackBox';
+import { ActiveWorkout } from '../components/ActiveWorkout';
 import type { Message, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, DataContext } from '@/lib/types';
 import { DataContextState } from '@/lib/context';
 import { calculateMovingAverage } from '@/lib/analytics';
+import { predictNextWorkout, WorkoutPlan } from '@/lib/gzclp-engine';
 import { Settings, UserCircle, MessageSquare, LayoutDashboard, Plus } from 'lucide-react';
 import { generateText, generateObject } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -33,6 +35,8 @@ export default function Page() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [logModalType, setLogModalType] = useState<'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak'>('weigh-in');
+  const [isActiveWorkoutOpen, setIsActiveWorkoutOpen] = useState(false);
+  const [activeWorkoutPlan, setActiveWorkoutPlan] = useState<WorkoutPlan | null>(null);
 
   // Data State
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
@@ -167,8 +171,37 @@ export default function Page() {
     }
   };
 
+  const handleStartWorkout = () => {
+    // Predict the next workout based on history
+    const plan = predictNextWorkout(lifts);
+    setActiveWorkoutPlan(plan);
+    setIsActiveWorkoutOpen(true);
+  };
 
-   
+  const handleCompleteActiveWorkout = async (loggedLifts: Lift[]) => {
+    setIsActiveWorkoutOpen(false);
+
+    // We will loop over these and send to API
+    const toastId = toast.loading("Saving Workout Logs...");
+    try {
+      for (const lift of loggedLifts) {
+        await fetch('/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'lift',
+            data: lift
+          })
+        });
+      }
+      await refreshData(true);
+      toast.success("Workout saved to Google Sheets!", { id: toastId });
+    } catch (e) {
+      console.error("Failed to save workout logs", e);
+      toast.error("Error saving workout. Some data may be lost.", { id: toastId });
+      setLifts(prev => [...loggedLifts, ...prev]); // Optimistic fallback
+    }
+  };
   const processStats = (wLogs: WeighIn[], nLogs: Nutrition[], profile: UserProfile, cLogs: Cardio[]) => {
     if (!wLogs || wLogs.length === 0) return;
 
@@ -302,19 +335,30 @@ export default function Page() {
       images: selectedImage ? [selectedImage] : undefined
     };
 
+    const newMessages = [...messages, userMsg];
+
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setSelectedImage(null); // Clear image after sending
     setIsLoading(true);
+
+    // Calculate context for override
+    let overrideStr = undefined; // Initialize as undefined
+    if (isActiveWorkoutOpen && activeWorkoutPlan) {
+      const activeSets = activeWorkoutPlan.sets;
+      const currentExercise = activeSets[0] || { exercise: 'an exercise', targetWeight: 0, targetReps: 0 }; // Very rough approximation for now of what they are doing
+      overrideStr = "The user is currently in the middle of a live workout, resting between sets. They are doing " + activeWorkoutPlan.dayName + ". Give brief, hyper-focused advice, form cues, or hype. Do not give long winded answers.";
+    }
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          messages: newMessages,
+          clientDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
           dataContext: dataContext,
-          clientDate: new Date().toLocaleDateString('en-US')
+          systemOverride: overrideStr
         }),
       });
 
@@ -483,6 +527,20 @@ export default function Page() {
           preferences={dataContext?.userProfile?.preferences}
           lifts={lifts}
         />
+        {isActiveWorkoutOpen && (
+          <ActiveWorkout
+            plan={activeWorkoutPlan}
+            onClose={() => setIsActiveWorkoutOpen(false)}
+            onComplete={handleCompleteActiveWorkout}
+
+            // Chat Pass-through
+            messages={messages}
+            input={input}
+            setInput={setInput}
+            handleChatSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
+            isLoading={isLoading}
+          />
+        )}
 
         {/* Mobile Tab Nav */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-zinc-900 border-t border-zinc-800 z-50 flex justify-around items-center">
@@ -533,6 +591,7 @@ export default function Page() {
               graphData={graphData}
               nutritionGraphData={nutritionGraphData}
               onOpenLogModal={handleOpenLogModal}
+              onStartWorkout={handleStartWorkout}
 
               netCalories={netCalories}
               caloriesIn={caloriesIn}
