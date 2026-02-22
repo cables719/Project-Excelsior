@@ -43,42 +43,53 @@ export async function getAuth(sheetIdOverride?: string) {
     return { auth, sheetId }; // Return both so caller knows the resolved ID
 }
 
-// Helper to parse the User KV tab
-async function fetchUserProfile(sheets: any, sheetId: string): Promise<UserProfile | undefined> {
-    try {
-        const response = await sheets.spreadsheets.values.get({
+// Generic helper: append a row to any sheet, auto-creating the sheet if needed.
+async function appendToSheet(
+    sheetName: string,
+    range: string,
+    values: (string | number)[][],
+    opts?: { sheetIdOverride?: string; autoCreate?: boolean; headers?: string[][] }
+): Promise<void> {
+    const { auth, sheetId } = await getAuth(opts?.sheetIdOverride);
+    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    const fullRange = `${sheetName}!${range}`;
+
+    const doAppend = async () => {
+        await sheets.spreadsheets.values.append({
             spreadsheetId: sheetId,
-            range: 'User!A:B', // Key, Value
+            range: fullRange,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values },
         });
-        const rows = response.data.values;
-        if (!rows) return undefined;
+    };
 
-        const profile: any = {};
-        rows.forEach((row: string[]) => {
-            if (row[0] && row[1]) {
-                const key = row[0].trim();
-                const val = row[1].trim();
-
-                // Try to parse JSON first (for objects like coachAttributes)
-                if (val.startsWith('{') || val.startsWith('[')) {
-                    try {
-                        profile[key] = JSON.parse(val);
-                        return;
-                    } catch {
-                        // Not JSON, fall through
-                    }
-                }
-
-                // Try to parse numbers
-                const num = Number(val);
-                profile[key] = isNaN(num) ? val : num;
+    if (opts?.autoCreate) {
+        try {
+            await doAppend();
+        } catch {
+            // Sheet likely doesn't exist — create it
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: sheetId,
+                requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] },
+            });
+            // Add headers if provided
+            if (opts.headers) {
+                await sheets.spreadsheets.values.append({
+                    spreadsheetId: sheetId,
+                    range: `${sheetName}!A1`,
+                    valueInputOption: 'RAW',
+                    requestBody: { values: opts.headers },
+                });
             }
-        });
-        return profile as UserProfile;
-    } catch (e) {
-        console.warn('User tab likely missing or empty:', e);
-        return undefined;
+            await doAppend();
+        }
+    } else {
+        await doAppend();
     }
+
+    DataCache.clear(sheetId);
 }
 
 export async function updateUserProfile(profile: UserProfile, sheetIdOverride?: string): Promise<void> {
@@ -347,271 +358,53 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
 }
 
 export async function appendWeighIn(data: WeighIn, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    const values = [
+    await appendToSheet('Weigh-ins', 'A:D', [
         [data.date, data.weight, data.bodyFat, data.notes]
-    ];
-
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Weigh-ins!A:D',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values },
-    });
-
-    DataCache.clear(sheetId);
+    ], { sheetIdOverride });
 }
 
 export async function appendLift(data: Lift, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
     const vol = (Number(data.sets) * Number(data.reps) * Number(data.weight)).toString();
     const safeVol = isNaN(Number(vol)) ? '' : vol;
-
-    const values = [
+    await appendToSheet('Lifts', 'A:G', [
         [data.date, data.exercise, data.sets, data.reps, data.weight, safeVol, data.notes]
-    ];
-
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Lifts!A:G',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values },
-    });
-
-    DataCache.clear(sheetId);
+    ], { sheetIdOverride });
 }
 
 export async function appendCardio(data: Cardio, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // Format: Date, Activity, Duration, Distance, Elevation (Skip), HeartRate, Notes
-    const values = [
-        [data.date, data.activity, data.duration, data.distance, "", data.heartRate, data.notes]
-    ];
-
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Cardio!A:G',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values },
-    });
-
-    DataCache.clear(sheetId);
+    await appendToSheet('Cardio', 'A:G', [
+        [data.date, data.activity, data.duration, data.distance, '', data.heartRate, data.notes]
+    ], { sheetIdOverride });
 }
 
-
-
 export async function appendNutrition(data: Nutrition, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    const values = [
+    await appendToSheet('Nutrition', 'A:F', [
         [data.date, data.time, data.item, data.calories, data.protein, data.notes]
-    ];
-
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Nutrition!A:F',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values },
-    });
-
-    DataCache.clear(sheetId);
+    ], { sheetIdOverride });
 }
 
 export async function appendFeedback(content: string, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
     const date = new Date().toLocaleString('en-US');
-
-    const values = [
+    await appendToSheet('Feedback', 'A:B', [
         [date, content]
-    ];
-
-    try {
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'Feedback!A:B',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values },
-        });
-    } catch (error) {
-        // Likely the "Feedback" sheet doesn't exist. Create it.
-        try {
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId: sheetId,
-                requestBody: {
-                    requests: [{ addSheet: { properties: { title: 'Feedback' } } }]
-                }
-            });
-            // Retry append
-            await sheets.spreadsheets.values.append({
-                spreadsheetId: sheetId,
-                range: 'Feedback!A:B',
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values },
-            });
-        } catch (retryError) {
-            console.error("Failed to create Feedback sheet or append:", retryError);
-            throw retryError;
-        }
-    }
-    // No need to clear cache for feedback
+    ], { sheetIdOverride, autoCreate: true });
 }
 
 export async function appendEaglesPeakLog(data: EaglesPeakLog, sheetIdOverride?: string): Promise<void> {
-    const { auth, sheetId } = await getAuth(sheetIdOverride);
-    if (!sheetId) throw new Error('Missing GOOGLE_SHEET_ID');
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    const values = [
+    await appendToSheet('Eagles Peak', 'A:L', [
         [data.date, data.ascentTime, data.overallTime, data.averagePace, data.averageHR, data.maxHR, data.zone5, data.zone4, data.zone3, data.zone2, data.calories, data.notes]
-    ];
-
-    try {
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'Eagles Peak!A:L',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values },
-        });
-    } catch (error) {
-        // Create sheet if missing
-        try {
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId: sheetId,
-                requestBody: {
-                    requests: [{ addSheet: { properties: { title: 'Eagles Peak' } } }]
-                }
-            });
-            // Retry
-            await sheets.spreadsheets.values.append({
-                spreadsheetId: sheetId,
-                range: 'Eagles Peak!A:L',
-                valueInputOption: 'USER_ENTERED',
-                requestBody: { values },
-            });
-        } catch (retryError) {
-            console.error("Failed to create Eagles Peak sheet or append:", retryError);
-            throw retryError;
-        }
-    }
-
-    DataCache.clear(sheetId);
+    ], { sheetIdOverride, autoCreate: true });
 }
 
-// Hydration Logging
-export async function appendHydration(data: HydrationLog, sheetId: string) {
-    const { auth } = await getAuth(sheetId);
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // Ensure Sheet Exists
-    try {
-        await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: 'Hydration!A1',
-        });
-    } catch (e: any) {
-        // Create if missing
-        console.log("Creating Hydration sheet...");
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: sheetId,
-            requestBody: {
-                requests: [{
-                    addSheet: {
-                        properties: { title: 'Hydration' }
-                    }
-                }]
-            }
-        });
-        // Add Headers
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'Hydration!A1',
-            valueInputOption: 'RAW',
-            requestBody: {
-                values: [['Date', 'Time', 'Amount (oz)', 'Source']]
-            }
-        });
-    }
-
-    // Append Data
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Hydration!A:D',
-        valueInputOption: 'RAW',
-        requestBody: {
-            values: [[data.date, data.time, data.amount, data.source]]
-        }
-    });
-
-    // Invalidate Cache
-    DataCache.clear(sheetId);
+export async function appendHydration(data: HydrationLog, sheetId: string): Promise<void> {
+    await appendToSheet('Hydration', 'A:D', [
+        [data.date, data.time, data.amount, data.source]
+    ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Time', 'Amount (oz)', 'Source']] });
 }
 
-// Wellness Logging
-export async function appendWellness(data: WellnessLog, sheetId: string) {
-    const { auth } = await getAuth(sheetId);
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // Ensure Sheet Exists
-    try {
-        await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: 'Wellness!A1',
-        });
-    } catch (e: any) {
-        // Create if missing
-        console.log("Creating Wellness sheet...");
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: sheetId,
-            requestBody: {
-                requests: [{
-                    addSheet: {
-                        properties: { title: 'Wellness' }
-                    }
-                }]
-            }
-        });
-        // Add Headers
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: sheetId,
-            range: 'Wellness!A1',
-            valueInputOption: 'RAW',
-            requestBody: {
-                values: [['Date', 'Mood (1-5)', 'Notes']]
-            }
-        });
-    }
-
-    // Append Data
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Wellness!A:C', // Reduced range
-        valueInputOption: 'RAW',
-        requestBody: {
-            values: [[data.date, data.mood, data.notes]]
-        }
-    });
-
-    // Invalidate Cache
-    DataCache.clear(sheetId);
+export async function appendWellness(data: WellnessLog, sheetId: string): Promise<void> {
+    await appendToSheet('Wellness', 'A:C', [
+        [data.date, data.mood, data.notes]
+    ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Mood (1-5)', 'Notes']] });
 }
-
 
