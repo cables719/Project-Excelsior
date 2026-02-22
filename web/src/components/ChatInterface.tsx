@@ -87,11 +87,11 @@ export function ChatInterface({
             )}
 
             {/* Messages */}
-            <div className={`flex-1 overflow-y-auto ${isEmbedded ? 'pt-4 pb-4 px-4' : 'pt-24 pb-8 px-8'} scroll-smooth`}>
-                <div className="max-w-4xl mx-auto space-y-10">
+            <div className={`flex-1 overflow-y-auto ${isEmbedded ? 'p-4' : 'pt-24 pb-24 md:pb-8 px-4 md:px-8'} scroll-smooth flex flex-col`}>
+                <div className="max-w-4xl mx-auto space-y-10 w-full flex-1 flex flex-col">
                     {messages.length === 0 && !isLoading && !isEmbedded && (
-                        <div className="flex flex-col items-center justify-center opacity-30 mt-12 md:mt-32 space-y-4 animate-pulse">
-                            <img src="/logo.png" alt="Logo" className="w-80 h-80 opacity-100 mt-12" />
+                        <div className="flex-1 flex flex-col items-center justify-center opacity-30 space-y-4 animate-pulse">
+                            <img src="/logo.png" alt="Logo" className="w-48 h-48 md:w-80 md:h-80 opacity-100" />
                             <p className="font-light tracking-wide text-lg">SYSTEM READY</p>
                         </div>
                     )}
@@ -152,7 +152,7 @@ export function ChatInterface({
             </div>
 
             {/* Input Area */}
-            <div className={`${isEmbedded ? 'p-4' : 'p-8 pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent'}`}>
+            <div className={`${isEmbedded ? 'p-4' : 'px-4 md:px-8 pt-4 pb-24 md:pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent'}`}>
                 <div className="max-w-4xl mx-auto">
                     {selectedImage && (
                         <div className="mb-2 relative inline-block">

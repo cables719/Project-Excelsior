@@ -8,6 +8,7 @@ export interface WorkoutSet {
     targetReps: number;
     tier: 'T1' | 'T2' | 'T3';
     restSeconds: number;
+    isLinkedToPrevious?: boolean;
 }
 
 export interface WorkoutPlan {
@@ -68,8 +69,17 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
 
     // 2. Look back at the history to find the last performance of these specific tier/exercise combos
     const getTarget = (ex: string, tier: 'T1' | 'T2' | 'T3'): WorkoutSet => {
+        const isMatch = (logEx: string) => {
+            const lower = logEx.toLowerCase();
+            if (ex === 'Squat') return lower.includes('squat') && !lower.includes('split') && !lower.includes('goblet');
+            if (ex === 'Bench Press') return lower.includes('bench') && !lower.includes('dumbbell') && !lower.includes('db');
+            if (ex === 'Overhead Press') return lower.includes('overhead') || lower.includes('ohp');
+            if (ex === 'Deadlift') return lower.includes('dead') && !lower.includes('romanian') && !lower.includes('rdl');
+            return lower.includes(ex.toLowerCase());
+        };
+
         const pastLogs = history
-            .filter(l => l.exercise.toLowerCase().includes(ex.toLowerCase()))
+            .filter(l => isMatch(l.exercise))
             .filter(l => detectTier(parseFloat(l.reps) || 0) === tier)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -79,16 +89,20 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
         const progArray = tier === 'T1' ? T1_PROGRESSION : tier === 'T2' ? T2_PROGRESSION : T3_PROGRESSION;
 
         if (pastLogs.length > 0) {
-            const lastLog = pastLogs[0];
-            const lastWeight = parseFloat(lastLog.weight) || 45;
+            // Find the true working weight by looking at the max of the last 3 entries 
+            // This prevents warmup sets or deloads from tanking the logic.
+            const recentLogs = pastLogs.slice(0, 3);
+            const maxRecentWeight = Math.max(...recentLogs.map(l => parseFloat(l.weight) || 45));
+            const lastLog = recentLogs.find(l => (parseFloat(l.weight) || 45) === maxRecentWeight) || pastLogs[0];
+
+            const lastWeight = maxRecentWeight;
             const lastSets = parseFloat(lastLog.sets) || 0;
             const lastReps = parseFloat(lastLog.reps) || 0;
 
-            // Check if they failed last time
-            const failed = lastLog.notes.toLowerCase().includes('fail');
+            const failed = lastLog.notes?.toLowerCase().includes('fail') || false;
 
-            // Find current stage based on last logged sets/reps
-            currentStageIdx = progArray.findIndex(p => p.sets === lastSets && p.reps === lastReps);
+            // Find current stage based on last logged REPS (sets can vary if they end early)
+            currentStageIdx = progArray.findIndex(p => p.reps === lastReps);
             if (currentStageIdx === -1) currentStageIdx = 0; // Fallback to stage 1 if weird data
 
             if (failed) {
@@ -108,6 +122,23 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
             }
         }
 
+        if (ex.toLowerCase() === 'pullups') {
+            const pullupLogs = history.filter(l => l.exercise.toLowerCase().includes('pullup') || l.exercise.toLowerCase().includes('pull-up'));
+            let maxWeight = 0;
+            if (pullupLogs.length > 0) {
+                // Find highest weight
+                maxWeight = Math.max(...pullupLogs.map(l => parseFloat(l.weight) || 0));
+            }
+            return {
+                exercise: 'Pullups',
+                targetWeight: maxWeight,
+                targetSets: progArray[currentStageIdx].sets,
+                targetReps: progArray[currentStageIdx].reps,
+                tier: tier,
+                restSeconds: 120
+            };
+        }
+
         return {
             exercise: ex,
             targetWeight: Math.max(0, targetWeight), // Allow 0 for bodyweight like pullups
@@ -122,16 +153,11 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
 
     // T1
     planSets.push(getTarget(t1Exercise, 'T1'));
-    // T1 Pullups if applicable
     if (t1PullupDay) planSets.push(getTarget('Pullups', 'T1'));
 
     // T2
     planSets.push(getTarget(t2Exercise, 'T2'));
-    // T2 Pullups if applicable
     if (!t1PullupDay) planSets.push(getTarget('Pullups', 'T2'));
-
-    // T3 Placeholder (Can add logic later for tracking accessories, usually static DB rows/curls)
-    // planSets.push({ exercise: 'Accessory 1', targetWeight: 0, targetSets: 3, targetReps: 15, tier: 'T3', restSeconds: 90 });
 
     return {
         dayName: `Day ${nextDay}: ${t1Exercise}`,

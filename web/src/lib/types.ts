@@ -117,6 +117,7 @@ export interface UserProfile {
         showEaglesPeak?: boolean;
         showWellness?: boolean;
         hydrationTarget?: number; // oz
+        enableGZCLP?: boolean;
     };
     [key: string]: unknown;
 }

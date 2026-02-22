@@ -539,6 +539,9 @@ export default function Page() {
             setInput={setInput}
             handleChatSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
             isLoading={isLoading}
+            userAvatar={dataContext?.userProfile?.userAvatar}
+            coachAvatar={dataContext?.userProfile?.customCoachAvatar}
+            coachName={dataContext?.userProfile?.customCoachName}
           />
         )}
 

@@ -407,21 +407,23 @@ export function Dashboard({
                             <>
                                 {/* Lift & Cardio Buttons */}
                                 <div className="space-y-4 mb-8">
-                                    <button
-                                        onClick={onStartWorkout}
-                                        className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 p-4 rounded-2xl flex items-center justify-between group transition-all"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <Play size={20} className="text-emerald-400" />
+                                    {preferences?.enableGZCLP && (
+                                        <button
+                                            onClick={onStartWorkout}
+                                            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <Play size={20} className="text-emerald-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="text-sm font-bold text-emerald-100">Start Active Workout</h3>
+                                                    <p className="text-[10px] text-emerald-400/80">Live mode with prediction & timer</p>
+                                                </div>
                                             </div>
-                                            <div className="text-left">
-                                                <h3 className="text-sm font-bold text-emerald-100">Start Active Workout</h3>
-                                                <p className="text-[10px] text-emerald-400/80">Live mode with prediction & timer</p>
-                                            </div>
-                                        </div>
-                                        <Play size={20} className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors" />
-                                    </button>
+                                            <Play size={20} className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors" />
+                                        </button>
+                                    )}
 
                                     <div className="flex gap-4">
                                         <button
@@ -429,8 +431,8 @@ export function Dashboard({
                                             className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                    <Dumbbell size={20} className="text-zinc-400" />
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <Dumbbell size={20} className="text-emerald-500" />
                                                 </div>
                                                 <div className="text-left">
                                                     <h3 className="text-sm font-bold text-white">Log Past Lift</h3>
