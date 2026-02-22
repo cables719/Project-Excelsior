@@ -298,3 +298,19 @@ export function calculateMovingAverage<T extends { date: string;[key: string]: a
         return result as T & { [key: string]: number | null };
     });
 }
+
+export function calculateTDEE(weight: number | undefined | null, bmrOverride: number | undefined | null, tdeeOverride: number | undefined | null, activityLevel: number | undefined | null): number {
+    if (tdeeOverride) return Number(tdeeOverride);
+
+    let bmr = 2000;
+    if (bmrOverride) bmr = Number(bmrOverride);
+    else if (weight) bmr = Number(weight) * 11; // Rough est
+
+    const activityScalar = Number(activityLevel || 1.2);
+    return Math.round(bmr * activityScalar);
+}
+
+export function calculateNetCalories(tdee: number, caloriesIn: number, activityBurn: number, includeBurnInBudget: boolean = false): number {
+    const budget = includeBurnInBudget ? tdee + activityBurn : tdee;
+    return Math.round(budget - caloriesIn);
+}

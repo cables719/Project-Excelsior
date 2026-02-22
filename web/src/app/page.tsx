@@ -12,7 +12,7 @@ import { FeedbackBox } from '../components/FeedbackBox';
 import { ActiveWorkout } from '../components/ActiveWorkout';
 import type { Message, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, DataContext } from '@/lib/types';
 import { DataContextState } from '@/lib/context';
-import { calculateMovingAverage } from '@/lib/analytics';
+import { calculateMovingAverage, calculateTDEE, calculateNetCalories } from '@/lib/analytics';
 import { predictNextWorkout, WorkoutPlan } from '@/lib/gzclp-engine';
 import { Settings, UserCircle, MessageSquare, LayoutDashboard, Plus } from 'lucide-react';
 import { generateText, generateObject } from 'ai';
@@ -261,17 +261,12 @@ export default function Page() {
     setProteinIn(prot);
 
     // Targets
-    // BMR + Activity logic could go here. For now, static or profile based.
-    // If profile has BMR override...
-    let bmr = 2000;
-    if (profile?.bmrOverride) bmr = profile.bmrOverride;
-    else if (profile?.currentWeight) bmr = profile.currentWeight * 11; // Rough est
-
-    // TDEE (Total Daily Energy Expenditure)
-    // Default to Sedentary (1.2) if not specified
-    // Use activityLevel from profile if available (e.g. 1.55)
-    const activityScalar = Number(profile?.activityLevel || 1.2);
-    const tdee = Number(profile?.tdeeOverride || (bmr * activityScalar));
+    const tdee = calculateTDEE(
+      profile?.currentWeight as number | undefined,
+      profile?.bmrOverride as number | undefined,
+      profile?.tdeeOverride as number | undefined,
+      profile?.activityLevel as number | undefined
+    );
 
     // Activity Burn (Today) from Cardio
     const todaysCardio = cLogs.filter(log => {
@@ -286,12 +281,7 @@ export default function Page() {
     setActivityBurn(burn);
 
     // Net Calculation
-    // TDEE Approach: Target = TDEE (+ optional Cardio burn if not included in activity level)
-    // User requested TDEE (e.g. 2883) to be the budget.
-    // We will assume TDEE includes baseline activity.
-    // If we want to add *extra* burn, we can: const balance = (tdee + burn) - cals;
-    // For now, let's stick to the requested TDEE base.
-    const balance = tdee - cals;
+    const balance = calculateNetCalories(tdee, cals, burn, false);
     setNetCalories(balance);
     setProteinTarget(profile?.proteinOverride || (profile?.goalWeight ? profile.goalWeight : 180));
 

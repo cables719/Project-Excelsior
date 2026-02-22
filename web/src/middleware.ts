@@ -1,11 +1,20 @@
 
 import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth({
-    pages: {
-        signIn: '/login',
-    },
-});
+// In E2E test mode, skip auth entirely
+function middleware(req: NextRequest) {
+    if (process.env.DISABLE_AUTH === 'true') {
+        return NextResponse.next();
+    }
+    // Fall through to withAuth for normal operation
+    return (withAuth({
+        pages: { signIn: '/login' },
+    }) as any)(req);
+}
+
+export default middleware;
 
 export const config = {
     // Protect everything inside /app EXCEPT:
