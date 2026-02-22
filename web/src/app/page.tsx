@@ -13,6 +13,7 @@ import { ActiveWorkout } from '../components/ActiveWorkout';
 import type { Message, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, DataContext } from '@/lib/types';
 import { DataContextState } from '@/lib/context';
 import { calculateMovingAverage, calculateTDEE, calculateNetCalories } from '@/lib/analytics';
+import { getWeeklyStats } from '@/lib/report';
 import { predictNextWorkout, WorkoutPlan } from '@/lib/gzclp-engine';
 import { Settings, UserCircle, MessageSquare, LayoutDashboard, Plus } from 'lucide-react';
 import { generateText, generateObject } from 'ai';
@@ -124,52 +125,74 @@ export default function Page() {
     }
   };
 
-  // --- Weekly Report Trigger ---
-  const handleGenerateReport = async (forceToday = false) => {
-    if (!dataContext) return;
+  // --- Sunday Auto-Trigger for Weekly Report ---
+  useEffect(() => {
+    if (!dataContext || messages.length > 0) return; // Only on fresh load with data ready
 
-    // Check if it's Sunday (0) or if forced
-    const today = new Date();
-    if (today.getDay() !== 0 && !forceToday) {
-      toast.error("Weekly reports are generated on Sundays.");
-      return;
-    }
+    const now = new Date();
+    if (now.getDay() !== 0) return; // Not Sunday
 
-    const toastId = toast.loading("Generating Weekly Report...");
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: [
-            ...messages,
-            { role: 'user', content: "Generate the Weekly Progress Report now." }
-          ],
-          dataContext: dataContext, // Send full context
-          systemOverride: "You are generating a Weekly Progress Report. Focus on trends, achievements, and opportunities for improvement based on the last week's data. Be encouraging but analytical."
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+    // Build a week key like "2026-W08" to prevent re-firing on reload
+    const oneJan = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((now.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7);
+    const weekKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 
-      if (!response.ok) throw new Error("Report generation failed");
+    const lastReportWeek = localStorage.getItem('excelsior_report_week');
+    if (lastReportWeek === weekKey) return; // Already sent this week
 
-      // consume stream or text 
-      // For simplicity reusing the chat structure, but standard chat might handle it 
-      // if we just push the user message. 
-      // Actually, let's just push the user message to the chat flow and let it handle it?
-      // But we want a specific system prompt. 
+    // Compute structured stats and fire the trigger invisibly
+    const stats = getWeeklyStats(dataContext);
+    localStorage.setItem('excelsior_report_week', weekKey);
 
-      // Let's just manually trigger a chat turn with a hidden system prompt override if possible
-      // Or just append the user message and let standard persona handle it if they are smart enough
-      // The prompt "Generate the Weekly Progress Report" is usually enough for a persona.
+    const triggerPrompt = `SYSTEM_EVENT: WEEKLY_REPORT_TRIGGER
+Context: The user has logged in. It is Sunday (or a requested report).
+Task: Generate a "Weekly Report Card" based on the following JSON stats.
+Tone: Supportive, enthusiastic, fun.
+Styles: Use Markdown. Use Emojis. Make it look like a receipt or a dashboard.
 
-      sendMessage("It's Sunday! Generate my Weekly Progress Report please.");
-      toast.dismiss(toastId);
+STATS:
+${JSON.stringify(stats, null, 2)}
 
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to generate report", { id: toastId });
-    }
-  };
+INSTRUCTIONS:
+1. **The Headline**: Fun greeting acknowledging the week is done.
+2. **Context**: State the date range of this report (e.g. "Week of Jan 21 - Jan 28").
+3. **The Numbers**:
+   - Show Total Lifting Volume (in lbs).
+   - Show the "Lift of the Week" (Heaviest weight moved).
+   - Show Cardio Minutes (if any).
+4. **The Analysis**:
+   - Compare "Weight Change" (using the provided 7-day rolling average difference).
+   - Mention "Compliance" (Days logged / 7).
+5. **The Vibes & Notes**:
+   - Look at the "highlights" list in the JSON. If the user mentioned "PR", "Win", or "Hard", mention it!
+   - Keep the tone hype. If volume is high (>10k), celebrate "The Grind".`;
+
+    // Send invisibly — don't show the trigger prompt in chat, only Clara's response
+    setIsLoading(true);
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: triggerPrompt }],
+        clientDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        dataContext: dataContext,
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const reportMsg: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: data.role === 'assistant' ? data.content : data.text,
+        };
+        setMessages([reportMsg]);
+      })
+      .catch(err => {
+        console.error('Weekly report trigger failed:', err);
+      })
+      .finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataContext]);
 
   const handleStartWorkout = () => {
     // Predict the next workout based on history

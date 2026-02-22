@@ -125,14 +125,14 @@ export const getWeeklyStats = (data: DataContext, requestDate: Date = new Date()
         weightChange = avgEnd - avgStart;
     }
 
-    // 7. Highlights Scan
+    // 7. Highlights Scan (word-boundary match to avoid 'pr' matching 'protein', etc.)
     const highlights: string[] = [];
-    const keywords = ['pr', 'max', 'win', 'record', 'best', 'hard', 'easy', 'fail'];
+    const keywordPatterns = ['pr', 'max', 'win', 'record', 'best', 'hard', 'easy', 'fail']
+        .map(k => new RegExp(`\\b${k}\\b`, 'i'));
 
     [...weekLifts, ...weekCardio, ...weekNutrition].forEach(item => {
         if (!item.notes) return;
-        const lower = item.notes.toLowerCase();
-        if (keywords.some(k => lower.includes(k))) {
+        if (keywordPatterns.some(pattern => pattern.test(item.notes))) {
             const date = item.date.split('/').slice(0, 2).join('/');
             let context = '';
             if ('exercise' in item) context = (item as Lift).exercise;
