@@ -9,7 +9,7 @@ import { SettingsModal } from '../components/SettingsModal';
 import { ProfileModal } from '../components/ProfileModal';
 import { LogModal } from '../components/LogModal';
 import { FeedbackBox } from '../components/FeedbackBox';
-import { ActiveWorkout } from '../components/ActiveWorkout';
+import { ActiveWorkout, ActiveWorkoutState } from '../components/ActiveWorkout';
 import type { Message, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, UserProfile, DataContext } from '@/lib/types';
 import { DataContextState } from '@/lib/context';
 import { calculateMovingAverage, calculateTDEE, calculateNetCalories } from '@/lib/analytics';
@@ -38,6 +38,7 @@ export default function Page() {
   const [logModalType, setLogModalType] = useState<'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak'>('weigh-in');
   const [isActiveWorkoutOpen, setIsActiveWorkoutOpen] = useState(false);
   const [activeWorkoutPlan, setActiveWorkoutPlan] = useState<WorkoutPlan | null>(null);
+  const [activeWorkoutState, setActiveWorkoutState] = useState<ActiveWorkoutState | null>(null);
 
   // Data State
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
@@ -358,9 +359,15 @@ INSTRUCTIONS:
     // Calculate context for override
     let overrideStr = undefined; // Initialize as undefined
     if (isActiveWorkoutOpen && activeWorkoutPlan) {
-      const activeSets = activeWorkoutPlan.sets;
-      const currentExercise = activeSets[0] || { exercise: 'an exercise', targetWeight: 0, targetReps: 0 }; // Very rough approximation for now of what they are doing
-      overrideStr = "The user is currently in the middle of a live workout, resting between sets. They are doing " + activeWorkoutPlan.dayName + ". Give brief, hyper-focused advice, form cues, or hype. Do not give long winded answers.";
+      if (activeWorkoutState && activeWorkoutState.exercise) {
+        const ws = activeWorkoutState;
+        const stateLabel = ws.workoutState === 'rest' ? 'resting between sets' : 'about to do a set';
+        overrideStr = `The user is in a LIVE WORKOUT right now (${ws.dayName}). They are ${stateLabel}.
+Current exercise: ${ws.exercise} (${ws.tier}) at ${ws.weight}lbs, set ${ws.currentSet} of ${ws.totalSets}, targeting ${ws.targetReps} reps.
+Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep responses under 3 sentences.`;
+      } else {
+        overrideStr = "The user is in a live workout. They are doing " + activeWorkoutPlan.dayName + ". Give brief, hyper-focused advice, form cues, or hype. Do not give long winded answers.";
+      }
     }
 
     try {
@@ -543,8 +550,9 @@ INSTRUCTIONS:
         {isActiveWorkoutOpen && (
           <ActiveWorkout
             plan={activeWorkoutPlan}
-            onClose={() => setIsActiveWorkoutOpen(false)}
+            onClose={() => { setIsActiveWorkoutOpen(false); setActiveWorkoutState(null); }}
             onComplete={handleCompleteActiveWorkout}
+            onWorkoutStateChange={setActiveWorkoutState}
 
             // Chat Pass-through
             messages={messages}

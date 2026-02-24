@@ -5,6 +5,7 @@ import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, Cartes
 import { Lift } from '@/lib/types';
 import { processLifts, aggregateDailyBest, determinePersonalBests } from '@/lib/analytics';
 import { WilksGauge } from './WilksGauge';
+import { normalizeExerciseName } from '@/lib/exercise-aliases';
 
 interface ExerciseTabProps {
     lifts: Lift[];
@@ -19,7 +20,8 @@ export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal,
     const [liftFilter, setLiftFilter] = React.useState<'all' | 'T1' | 'T2'>('all');
 
     const uniqueLifts = React.useMemo(() => {
-        const set = new Set(lifts.map(l => l.exercise));
+        // Normalize all exercise names to canonical form, then deduplicate
+        const set = new Set(lifts.map(l => normalizeExerciseName(l.exercise)));
         return Array.from(set).sort();
     }, [lifts]);
 
@@ -49,7 +51,7 @@ export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal,
             { label: 'Squat', lift: bests['Squat'] },
             { label: 'Bench', lift: bests['Bench'] },
             { label: 'Deadlift', lift: bests['Deadlift'] },
-            { label: 'Press', lift: bests['Press'] }
+            { label: 'OHP', lift: bests['OHP'] }
         ];
     }, [lifts]);
 

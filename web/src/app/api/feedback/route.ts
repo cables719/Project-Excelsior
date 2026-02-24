@@ -1,8 +1,9 @@
-
 import { appendFeedback } from '@/lib/data';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getUserConfig } from "@/lib/user-store";
+
+// Admin Sheet ID — this is where ALL feedback goes regardless of sender
+const ADMIN_SHEET_ID = '1S3yIQOi-ngOtADfRTeYf1F1tyPwDfi7nsBXXkuWKYH8';
 
 export async function POST(req: Request) {
     try {
@@ -14,19 +15,18 @@ export async function POST(req: Request) {
         const { feedback } = await req.json();
         if (!feedback) return new Response('Missing feedback', { status: 400 });
 
-        const config = await getUserConfig(session.user.email);
-        if (!config?.sheetId) {
-            return new Response('No sheet configured', { status: 400 });
-        }
+        console.log(`[Feedback] From: ${session.user.email} → Target Sheet: ${ADMIN_SHEET_ID}`);
 
         const fullContent = `[${session.user.email}] ${feedback}`;
-        await appendFeedback(fullContent, config.sheetId);
+        await appendFeedback(fullContent, ADMIN_SHEET_ID);
+
+        console.log(`[Feedback] Saved successfully.`);
 
         return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (e) {
-        console.error('Feedback Error:', e);
+        console.error('[Feedback] Error:', e);
         return new Response('Internal Error', { status: 500 });
     }
 }

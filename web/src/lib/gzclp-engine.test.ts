@@ -10,7 +10,7 @@ describe('GZCLP Engine', () => {
         const plan = predictNextWorkout(history);
         expect(plan.dayName).toContain('Day B');
         expect(plan.sets.length).toBeGreaterThan(0);
-        expect(plan.sets[0].exercise).toBe('Overhead Press');
+        expect(plan.sets[0].exercise).toBe('OHP');
     });
 
     test('increments weight on success for T1', () => {

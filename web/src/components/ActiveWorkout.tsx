@@ -1,13 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { X, Check, Play, Settings2, MessageSquare, Plus, Minus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Check, Play, Settings2, MessageSquare, Plus, Minus, FileText } from 'lucide-react';
 import { WorkoutPlan, WorkoutSet } from '@/lib/gzclp-engine';
 import { Lift, Message } from '@/lib/types';
 import { ChatInterface } from './ChatInterface';
+
+export interface ActiveWorkoutState {
+    exercise: string;
+    weight: number;
+    targetReps: number;
+    currentSet: number;
+    totalSets: number;
+    tier: string;
+    workoutState: 'preview' | 'active' | 'rest' | 'summary';
+    dayName: string;
+}
 
 interface ActiveWorkoutProps {
     plan: WorkoutPlan | null;
     onClose: () => void;
     onComplete: (loggedLifts: Lift[]) => void;
+    onWorkoutStateChange?: (state: ActiveWorkoutState | null) => void;
 
     // Chat Props
     messages: Message[];
@@ -21,7 +33,7 @@ interface ActiveWorkoutProps {
 }
 
 export function ActiveWorkout({
-    plan, onClose, onComplete,
+    plan, onClose, onComplete, onWorkoutStateChange,
     messages, input, setInput, handleChatSubmit, isLoading,
     userAvatar, coachAvatar, coachName
 }: ActiveWorkoutProps) {
@@ -31,6 +43,8 @@ export function ActiveWorkout({
     const [currentSequenceIndex, setCurrentSequenceIndex] = useState(0);
     const [currentTime, setCurrentTime] = useState(0); // Rest timer
     const [activeSets, setActiveSets] = useState<WorkoutSet[]>([]);
+    // Per-exercise user notes
+    const [userNotes, setUserNotes] = useState<Record<string, string>>({});
     // Captured execution 
     const [executionLog, setExecutionLog] = useState<{ exercise: string, weight: number, targetReps: number, targetSets: number, actualSetsCompleted: number, tier: string, failed: boolean, notes: string }[]>([]);
 
@@ -64,6 +78,35 @@ export function ActiveWorkout({
     const currentSeqItem = sequence[currentSequenceIndex];
     const currentExercise = currentSeqItem ? activeSets[currentSeqItem.exerciseIndex] : null;
     const currentSetRepTrack = currentSeqItem ? currentSeqItem.setNumber : 1;
+
+    // Notify parent of workout state changes so Clara can see what we're doing
+    useEffect(() => {
+        if (onWorkoutStateChange) {
+            if (currentExercise && (state === 'active' || state === 'rest')) {
+                onWorkoutStateChange({
+                    exercise: currentExercise.exercise,
+                    weight: currentExercise.targetWeight,
+                    targetReps: currentExercise.targetReps,
+                    currentSet: currentSetRepTrack,
+                    totalSets: currentExercise.targetSets,
+                    tier: currentExercise.tier,
+                    workoutState: state,
+                    dayName: plan.dayName
+                });
+            } else {
+                onWorkoutStateChange(state === 'summary' ? null : {
+                    exercise: '',
+                    weight: 0,
+                    targetReps: 0,
+                    currentSet: 0,
+                    totalSets: 0,
+                    tier: '',
+                    workoutState: state,
+                    dayName: plan.dayName
+                });
+            }
+        }
+    }, [state, currentSequenceIndex, currentExercise]);
 
     const handleStart = () => {
         const executionSequence: { exerciseIndex: number; setNumber: number }[] = [];
@@ -137,14 +180,20 @@ export function ActiveWorkout({
     const finishWorkout = () => {
         // Convert to generic Lift[]
         const date = new Date().toLocaleDateString('en-US');
-        const finalLogs: Lift[] = executionLog.map(l => ({
-            date: date,
-            exercise: l.exercise,
-            weight: l.weight.toString(),
-            sets: l.actualSetsCompleted.toString(),
-            reps: l.targetReps.toString(), // Key: log the target reps so stage detection works!
-            notes: l.notes
-        }));
+        const finalLogs: Lift[] = executionLog.map(l => {
+            // Merge user notes with auto-generated fail notes
+            const autoNotes = l.notes;
+            const manualNotes = userNotes[l.exercise] || '';
+            const combined = [autoNotes, manualNotes].filter(Boolean).join(' | ');
+            return {
+                date: date,
+                exercise: l.exercise,
+                weight: l.weight.toString(),
+                sets: l.actualSetsCompleted.toString(),
+                reps: l.targetReps.toString(),
+                notes: combined
+            };
+        });
 
         // Log to API
         onComplete(finalLogs);
@@ -289,7 +338,22 @@ export function ActiveWorkout({
                                 <p className="text-2xl font-medium text-zinc-400 mt-2">Target: {currentExercise.targetReps} Reps</p>
                             </div>
 
-                            <div className="w-full pt-8">
+                            {/* Notes Input */}
+                            <div className="w-full">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FileText size={12} className="text-zinc-600" />
+                                    <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Notes</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Form cues, RPE, sticking points..."
+                                    value={userNotes[currentExercise.exercise] || ''}
+                                    onChange={e => setUserNotes(prev => ({ ...prev, [currentExercise.exercise]: e.target.value }))}
+                                    className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-700 focus:border-emerald-500/50 outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="w-full pt-4">
                                 {isFailing ? (
                                     <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-4">
                                         <h3 className="text-sm font-bold text-zinc-400 mb-4 text-center">How many reps completed?</h3>
@@ -360,11 +424,20 @@ export function ActiveWorkout({
 
                             <div className="text-left bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-3">
                                 {executionLog.map((l, i) => (
-                                    <div key={i} className="flex justify-between items-center text-sm font-bold border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
-                                        <span className="text-zinc-300">{l.actualSetsCompleted}x{l.targetReps} {l.exercise}</span>
-                                        <span className={l.failed ? 'text-red-400' : 'text-emerald-400'}>
-                                            {l.weight} lbs {l.failed && '(Fail)'}
-                                        </span>
+                                    <div key={i} className="border-b border-zinc-800/50 pb-3 last:border-0 last:pb-0 space-y-2">
+                                        <div className="flex justify-between items-center text-sm font-bold">
+                                            <span className="text-zinc-300">{l.actualSetsCompleted}x{l.targetReps} {l.exercise}</span>
+                                            <span className={l.failed ? 'text-red-400' : 'text-emerald-400'}>
+                                                {l.weight} lbs {l.failed && '(Fail)'}
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Add notes..."
+                                            value={userNotes[l.exercise] || ''}
+                                            onChange={e => setUserNotes(prev => ({ ...prev, [l.exercise]: e.target.value }))}
+                                            className="w-full bg-zinc-800/50 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-300 placeholder:text-zinc-700 focus:border-emerald-500/50 outline-none"
+                                        />
                                     </div>
                                 ))}
                             </div>

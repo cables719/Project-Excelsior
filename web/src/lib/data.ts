@@ -4,6 +4,7 @@ export type { DataContext, WeighIn, Lift, Cardio, Nutrition, EaglesPeakLog, User
 import { formatDataContext } from './format-context';
 import { DataCache } from './cache';
 import { getUserConfig } from './user-store';
+import { normalizeExerciseName } from './exercise-aliases';
 
 // Config
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -364,10 +365,11 @@ export async function appendWeighIn(data: WeighIn, sheetIdOverride?: string): Pr
 }
 
 export async function appendLift(data: Lift, sheetIdOverride?: string): Promise<void> {
+    const normalized = normalizeExerciseName(data.exercise);
     const vol = (Number(data.sets) * Number(data.reps) * Number(data.weight)).toString();
     const safeVol = isNaN(Number(vol)) ? '' : vol;
     await appendToSheet('Lifts', 'A:G', [
-        [data.date, data.exercise, data.sets, data.reps, data.weight, safeVol, data.notes]
+        [data.date, normalized, data.sets, data.reps, data.weight, safeVol, data.notes]
     ], { sheetIdOverride });
 }
 
@@ -408,3 +410,29 @@ export async function appendWellness(data: WellnessLog, sheetId: string): Promis
     ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Mood (1-5)', 'Notes']] });
 }
 
+// --- Coach Notes (Clara's personal memory) ---
+export async function appendCoachNote(note: string, sheetId: string): Promise<void> {
+    const date = new Date().toLocaleString('en-US');
+    await appendToSheet('CoachNotes', 'A:B', [
+        [date, note]
+    ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Note']] });
+}
+
+export async function fetchCoachNotes(sheetId: string): Promise<string[]> {
+    try {
+        const { auth } = await getAuth(sheetId);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: 'CoachNotes!A2:B500',
+        });
+
+        const rows = response.data.values || [];
+        // Return last 10 notes (most recent first) to keep token count low
+        return rows.slice(-10).reverse().map(row => `[${row[0]}] ${row[1]}`);
+    } catch {
+        // Sheet doesn't exist yet — that's fine
+        return [];
+    }
+}

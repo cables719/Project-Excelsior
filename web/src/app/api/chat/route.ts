@@ -1,7 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
-import { fetchContext, DataContext } from '@/lib/data';
+import { fetchContext, DataContext, fetchCoachNotes, appendCoachNote } from '@/lib/data';
 import { getClaraSystemPrompt } from '@/lib/persona';
 import { getRecentHistory, appendExchange } from '@/lib/memory';
 import { getServerSession } from "next-auth/next";
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     let contextString = '';
     let rawData: DataContext | null = null;
     let history: any[] = [];
+    let coachNotes: string[] = [];
 
     try {
         if (dataContext) {
@@ -54,6 +55,11 @@ export async function POST(req: Request) {
             // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
             history = await getRecentHistory(30, config.sheetId);
         }
+
+        // Fetch coach notes (Clara's personal memory)
+        if (config?.sheetId) {
+            coachNotes = await fetchCoachNotes(config.sheetId);
+        }
     } catch (error) {
         console.error('[API] Error fetching context:', error);
         contextString = '[Error fetching recent data. Proceed with caution.]';
@@ -61,6 +67,11 @@ export async function POST(req: Request) {
 
     // 2. Define Persona & Memory
     const historyText = history.map(h => `${h.role === 'user' ? 'User' : 'Clara'}: ${h.content}`).join('\n');
+
+    // Coach notes section (only if there are notes to keep prompt lean)
+    const coachNotesSection = coachNotes.length > 0
+        ? `\n### YOUR PERSONAL NOTES (Private — user cannot see these)\n${coachNotes.join('\n')}\n`
+        : '';
 
     const systemPrompt = `${getClaraSystemPrompt(rawData, clientDate)}
 
@@ -70,8 +81,18 @@ ${contextString}
 ### RECENT INTERACTION HISTORY
 (Use this to maintain continuity. If empty, this is the first session.)
 ${historyText}
-
+${coachNotesSection}
 ${systemOverride ? `### CRITICAL OVERRIDE INSTRUCTION\n${systemOverride}\n\n` : ''}
+
+### COACH NOTES TOOL
+You can save private notes to yourself by including [COACH_NOTE: your note here] anywhere in your response.
+These notes will be saved and shown to you in future conversations — the user will NOT see them.
+Use this sparingly for important reminders like:
+- User mentioned an injury or limitation
+- A personal milestone or life event they shared
+- Training preferences you discovered
+- Something you want to follow up on next session
+Do NOT save routine observations. Only save things you genuinely want to remember.
 `;
 
     // 3. Generate Response (Non-Streaming)
@@ -94,13 +115,30 @@ ${systemOverride ? `### CRITICAL OVERRIDE INSTRUCTION\n${systemOverride}\n\n` : 
             }),
         });
 
+        // Parse and save coach notes (strip from visible response)
+        let cleanedText = text;
+        const noteRegex = /\[COACH_NOTE:\s*(.+?)\]/g;
+        const foundNotes: string[] = [];
+        let match;
+        while ((match = noteRegex.exec(text)) !== null) {
+            foundNotes.push(match[1].trim());
+        }
+        cleanedText = text.replace(noteRegex, '').trim();
+
+        // Save notes in background (don't block response)
+        if (foundNotes.length > 0 && config?.sheetId) {
+            Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId))).catch(err => {
+                console.error('[API] Failed to save coach notes:', err);
+            });
+        }
+
         // Log to Sheets
         const lastUserMsg = messages[messages.length - 1];
         if (lastUserMsg && lastUserMsg.role === 'user') {
-            await appendExchange(lastUserMsg.content, text, config?.sheetId);
+            await appendExchange(lastUserMsg.content, cleanedText, config?.sheetId);
         }
 
-        return Response.json({ role: 'assistant', content: text });
+        return Response.json({ role: 'assistant', content: cleanedText });
     } catch (error) {
         console.error('[API] Generation error:', error);
         return new Response(JSON.stringify({ error: 'Server Refused Connection (Quota?)' }), {

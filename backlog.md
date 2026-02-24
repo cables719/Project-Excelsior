@@ -1,8 +1,8 @@
 # Project Excelsior Backlog
 
-## ✅ Completed Phases (1-10)
+## ✅ Completed Phases (1-11)
 
-All foundational work is done: Google Sheets backend, Gemini chat integration, Clara persona, nutrition tracking, macro analytics, auth (NextAuth + Google), Cloud Run deployment, GZCLP lifting engine, Active Workout mode, Weekly Report Card, Eagles Peak tracking, Hydration & Wellness logging, safety protocols, and the automated testing platform (21 tests: Vitest + Playwright).
+All foundational work is done: Google Sheets backend, Gemini chat integration, Clara persona, nutrition tracking, macro analytics, auth (NextAuth + Google), Cloud Run deployment, GZCLP lifting engine, Active Workout mode (with live Clara context & per-lift notes), Weekly Report Card, Eagles Peak tracking, Hydration & Wellness logging, Coach Notes (Clara memory), Exercise Normalization, safety protocols, and the automated testing platform (21 tests: Vitest + Playwright).
 
 ---
 

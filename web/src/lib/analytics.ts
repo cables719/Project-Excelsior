@@ -1,5 +1,6 @@
 
 import { Lift, DataContext, EaglesPeakLog, Cardio, WeighIn } from './types';
+import { normalizeExerciseName, matchesExercise, CANONICAL_EXERCISES } from './exercise-aliases';
 
 // Helper: Normalize date to YYYY-MM-DD
 const normalizeDate = (dateStr: string): string => {
@@ -150,7 +151,8 @@ export interface LiftPoint {
 
 export function processLifts(lifts: Lift[], exerciseFilter: string): LiftPoint[] {
     return lifts
-        .filter(l => l.exercise.toLowerCase().includes(exerciseFilter.toLowerCase()))
+        .filter(l => matchesExercise(l.exercise, exerciseFilter))
+        .filter(l => !l.notes?.toLowerCase().includes('deload')) // Exclude deloads from graphs
         .map(l => {
             // Handle "BW" or empty weight strings more gracefully
             let w = parseFloat(l.weight);
@@ -224,8 +226,10 @@ export interface PersonalBest {
 }
 
 export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBest | null> {
-    const getBest = (terms: string[]): PersonalBest | null => {
-        const matches = lifts.filter(l => terms.some(t => l.exercise.toLowerCase().includes(t)));
+    const getBest = (canonicalName: string): PersonalBest | null => {
+        const matches = lifts
+            .filter(l => matchesExercise(l.exercise, canonicalName))
+            .filter(l => !l.notes?.toLowerCase().includes('deload')); // Exclude deloads from PBs
         if (matches.length === 0) return null;
 
         // Sort by e1RM desc
@@ -248,10 +252,10 @@ export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBe
     };
 
     return {
-        'Squat': getBest(['squat']),
-        'Bench': getBest(['bench']),
-        'Deadlift': getBest(['deadlift', 'dlift', 'dead']),
-        'Press': getBest(['overhead', 'ohp', 'press'])
+        'Squat': getBest(CANONICAL_EXERCISES.SQUAT),
+        'Bench': getBest(CANONICAL_EXERCISES.BENCH),
+        'Deadlift': getBest(CANONICAL_EXERCISES.DEADLIFT),
+        'OHP': getBest(CANONICAL_EXERCISES.OHP)
     };
 };
 

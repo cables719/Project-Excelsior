@@ -6,6 +6,7 @@ import { EaglesPeakForm } from './EaglesPeakForm';
 
 import { DataContext, Lift } from '@/lib/types'; // Import Lift type
 import { detectTier } from '@/lib/analytics'; // Import tier detection
+import { normalizeExerciseName, matchesExercise } from '@/lib/exercise-aliases';
 
 interface LogFormsProps {
     logType: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak';
@@ -52,9 +53,9 @@ export function LogForms({
 }: LogFormsProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Unique Exercises for Datalist
+    // Unique Exercises for Datalist — normalized to canonical names
     const uniqueExercises = React.useMemo(() => {
-        const set = new Set(lifts.map(l => l.exercise));
+        const set = new Set(lifts.map(l => normalizeExerciseName(l.exercise)));
         return Array.from(set).sort();
     }, [lifts]);
 
@@ -64,7 +65,12 @@ export function LogForms({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filteredExercises = React.useMemo(() => {
         if (!liftForm.exercise) return uniqueExercises;
-        return uniqueExercises.filter(ex => ex.toLowerCase().includes(liftForm.exercise.toLowerCase()));
+        const input = liftForm.exercise.toLowerCase();
+        // Show any canonical exercise whose name contains the input OR whose input normalizes to it
+        const normalizedInput = normalizeExerciseName(liftForm.exercise);
+        return uniqueExercises.filter(ex =>
+            ex.toLowerCase().includes(input) || normalizedInput === ex
+        );
     }, [uniqueExercises, liftForm.exercise]);
 
     const handleSelectExercise = (ex: string) => {
@@ -95,11 +101,12 @@ export function LogForms({
     const getHistory = () => {
         if (!liftForm.exercise || lifts.length === 0) return null;
 
-        const searchTerm = liftForm.exercise.trim().toLowerCase();
+        const searchTerm = liftForm.exercise.trim();
         if (!searchTerm) return null;
 
+        // Use matchesExercise so "Bench Press" matches "Bench" history
         const exerciseLifts = lifts
-            .filter(l => l.exercise.trim().toLowerCase() === searchTerm)
+            .filter(l => matchesExercise(l.exercise, searchTerm))
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (exerciseLifts.length === 0) return null;

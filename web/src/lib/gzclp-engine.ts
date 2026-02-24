@@ -1,5 +1,6 @@
 import { Lift } from './types';
 import { detectTier } from './analytics';
+import { CANONICAL_EXERCISES, matchesExercise, normalizeExerciseName } from './exercise-aliases';
 
 export interface WorkoutSet {
     exercise: string;
@@ -42,11 +43,11 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
 
     let nextDay = 'A';
     if (recentT1s.length > 0) {
-        const lastT1Exercise = recentT1s[0].exercise.toLowerCase();
-        if (lastT1Exercise.includes('squat')) nextDay = 'B';
-        else if (lastT1Exercise.includes('overhead') || lastT1Exercise.includes('ohp')) nextDay = 'C';
-        else if (lastT1Exercise.includes('bench')) nextDay = 'D';
-        else if (lastT1Exercise.includes('dead')) nextDay = 'A';
+        const lastT1 = normalizeExerciseName(recentT1s[0].exercise);
+        if (lastT1 === CANONICAL_EXERCISES.SQUAT) nextDay = 'B';
+        else if (lastT1 === CANONICAL_EXERCISES.OHP) nextDay = 'C';
+        else if (lastT1 === CANONICAL_EXERCISES.BENCH) nextDay = 'D';
+        else if (lastT1 === CANONICAL_EXERCISES.DEADLIFT) nextDay = 'A';
     }
 
     // Determine the core exercises for the predicted day based on the user's explicit instructions:
@@ -61,22 +62,15 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
     let t1PullupDay = false;
 
     switch (nextDay) {
-        case 'A': t1Exercise = 'Squat'; t2Exercise = 'Bench Press'; t1PullupDay = true; break;
-        case 'B': t1Exercise = 'Overhead Press'; t2Exercise = 'Deadlift'; t1PullupDay = false; break;
-        case 'C': t1Exercise = 'Bench Press'; t2Exercise = 'Squat'; t1PullupDay = false; break;
-        case 'D': t1Exercise = 'Deadlift'; t2Exercise = 'Overhead Press'; t1PullupDay = true; break;
+        case 'A': t1Exercise = CANONICAL_EXERCISES.SQUAT; t2Exercise = CANONICAL_EXERCISES.BENCH; t1PullupDay = true; break;
+        case 'B': t1Exercise = CANONICAL_EXERCISES.OHP; t2Exercise = CANONICAL_EXERCISES.DEADLIFT; t1PullupDay = false; break;
+        case 'C': t1Exercise = CANONICAL_EXERCISES.BENCH; t2Exercise = CANONICAL_EXERCISES.SQUAT; t1PullupDay = false; break;
+        case 'D': t1Exercise = CANONICAL_EXERCISES.DEADLIFT; t2Exercise = CANONICAL_EXERCISES.OHP; t1PullupDay = true; break;
     }
 
     // 2. Look back at the history to find the last performance of these specific tier/exercise combos
     const getTarget = (ex: string, tier: 'T1' | 'T2' | 'T3'): WorkoutSet => {
-        const isMatch = (logEx: string) => {
-            const lower = logEx.toLowerCase();
-            if (ex === 'Squat') return lower.includes('squat') && !lower.includes('split') && !lower.includes('goblet');
-            if (ex === 'Bench Press') return lower.includes('bench') && !lower.includes('dumbbell') && !lower.includes('db');
-            if (ex === 'Overhead Press') return lower.includes('overhead') || lower.includes('ohp');
-            if (ex === 'Deadlift') return lower.includes('dead') && !lower.includes('romanian') && !lower.includes('rdl');
-            return lower.includes(ex.toLowerCase());
-        };
+        const isMatch = (logEx: string) => matchesExercise(logEx, ex);
 
         const pastLogs = history
             .filter(l => isMatch(l.exercise))
@@ -122,16 +116,26 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
             }
         }
 
-        if (ex.toLowerCase() === 'pullups') {
-            const pullupLogs = history.filter(l => l.exercise.toLowerCase().includes('pullup') || l.exercise.toLowerCase().includes('pull-up'));
-            let maxWeight = 0;
+        if (normalizeExerciseName(ex) === CANONICAL_EXERCISES.PULLUPS) {
+            const pullupLogs = history
+                .filter(l => matchesExercise(l.exercise, CANONICAL_EXERCISES.PULLUPS))
+                .filter(l => !l.notes?.toLowerCase().includes('deload'));
+
+            let repeatWeight = 0;
             if (pullupLogs.length > 0) {
-                // Find highest weight
-                maxWeight = Math.max(...pullupLogs.map(l => parseFloat(l.weight) || 0));
+                // Max weight at the SAME tier — no +5 progression, no deload contamination
+                const tierSpecific = pullupLogs.filter(l => detectTier(parseFloat(l.reps) || 0) === tier);
+                if (tierSpecific.length > 0) {
+                    repeatWeight = Math.max(...tierSpecific.map(l => parseFloat(l.weight) || 0));
+                } else {
+                    // No tier-specific history — use most recent non-deload pullup
+                    const sorted = [...pullupLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    repeatWeight = parseFloat(sorted[0].weight) || 0;
+                }
             }
             return {
                 exercise: 'Pullups',
-                targetWeight: maxWeight,
+                targetWeight: repeatWeight,
                 targetSets: progArray[currentStageIdx].sets,
                 targetReps: progArray[currentStageIdx].reps,
                 tier: tier,

@@ -1,5 +1,6 @@
 import { DataContext, Lift } from '@/lib/types';
 import { UserProfile } from './types';
+import { matchesExercise, normalizeExerciseName, CANONICAL_EXERCISES } from './exercise-aliases';
 
 // --- Part 1: The "Soul" (Identity) ---
 // This will eventually be swappable for different coaches.
@@ -73,16 +74,16 @@ function getLiftingContext(lifts: Lift[]): string {
 
     const exercises: { [key: string]: Lift[] } = {};
     lifts.forEach(lift => {
-        const name = lift.exercise.trim();
+        const name = normalizeExerciseName(lift.exercise);
         if (!exercises[name]) exercises[name] = [];
         exercises[name].push(lift);
     });
 
-    const relevantLifts = ['Squat', 'Bench', 'Dlift', 'OHP'];
+    const relevantLifts = [CANONICAL_EXERCISES.SQUAT, CANONICAL_EXERCISES.BENCH, CANONICAL_EXERCISES.DEADLIFT, CANONICAL_EXERCISES.OHP];
     const summaryLines: string[] = [];
 
-    relevantLifts.forEach(name => {
-        const key = Object.keys(exercises).find(k => k.toLowerCase().includes(name.toLowerCase()));
+    relevantLifts.forEach(canonical => {
+        const key = Object.keys(exercises).find(k => matchesExercise(k, canonical));
         if (key && exercises[key]) {
             const history = exercises[key];
             const maxWeight = history.reduce((max, curr) => Math.max(max, parseFloat(curr.weight) || 0), 0);
@@ -91,7 +92,7 @@ function getLiftingContext(lifts: Lift[]): string {
             const lastSession = sorted[0];
 
             if (lastSession) {
-                summaryLines.push(`- ${name}: PR ${maxWeight}lb | Last: ${lastSession.weight}lb (${lastSession.sets}x${lastSession.reps}) on ${lastSession.date}`);
+                summaryLines.push(`- ${canonical}: PR ${maxWeight}lb | Last: ${lastSession.weight}lb (${lastSession.sets}x${lastSession.reps}) on ${lastSession.date}`);
             }
         }
     });
