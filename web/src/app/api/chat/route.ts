@@ -93,6 +93,7 @@ Use this sparingly for important reminders like:
 - Training preferences you discovered
 - Something you want to follow up on next session
 Do NOT save routine observations. Only save things you genuinely want to remember.
+Consistency: Before saving a note, check YOUR PERSONAL NOTES above. If similar information is already there, do not save it again.
 `;
 
     // 3. Generate Response (Non-Streaming)

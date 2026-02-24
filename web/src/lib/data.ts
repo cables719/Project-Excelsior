@@ -412,9 +412,24 @@ export async function appendWellness(data: WellnessLog, sheetId: string): Promis
 
 // --- Coach Notes (Clara's personal memory) ---
 export async function appendCoachNote(note: string, sheetId: string): Promise<void> {
+    const existing = await fetchCoachNotes(sheetId);
+    const cleanedNote = note.trim();
+
+    // Check if a similar note already exists in the last 10
+    // We strip the [Date] part from fetchCoachNotes output for comparison
+    const resemblesExisting = existing.some(ext => {
+        const content = ext.replace(/^\[.*?\]\s*/, '').trim();
+        return content.toLowerCase() === cleanedNote.toLowerCase();
+    });
+
+    if (resemblesExisting) {
+        console.log(`[Data] Skipping redundant coach note: ${cleanedNote}`);
+        return;
+    }
+
     const date = new Date().toLocaleString('en-US');
     await appendToSheet('CoachNotes', 'A:B', [
-        [date, note]
+        [date, cleanedNote]
     ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Note']] });
 }
 
