@@ -216,7 +216,7 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
 
                         // Eagles peak passthrough if needed
                         onLogEaglesPeak={async (data) => {
-                            await onSave({ ...data, type: 'eagles-peak' });
+                            await onSave({ ...data, date: logDate, type: 'eagles-peak' });
                             onClose();
                         }}
                     />

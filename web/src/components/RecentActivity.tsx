@@ -158,11 +158,11 @@ export function RecentActivity({ activeGraph, weighIns, lifts, cardio, nutrition
                                                             <span className="text-white">
                                                                 {item.ascentTime?.split(':').length >= 3 ? item.ascentTime.split(':').slice(0, 2).join(':') : item.ascentTime}
                                                             </span>
-                                                            {item.ascent && !isNaN(Number(item.ascent)) && (
+                                                            {item.overallTime && (
                                                                 <>
                                                                     <span className="text-zinc-600 mx-1">/</span>
                                                                     <span className="text-amber-500">
-                                                                        {Math.floor(Number(item.ascent))}m
+                                                                        {item.overallTime?.split(':').length >= 3 ? item.overallTime.split(':').slice(0, 2).join(':') : item.overallTime}
                                                                     </span>
                                                                 </>
                                                             )}

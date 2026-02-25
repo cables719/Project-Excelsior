@@ -9,11 +9,11 @@ const normalizeDate = (dateStr: string): string => {
     return d.toLocaleDateString('en-CA'); // YYYY-MM-DD
 };
 
-// Helper: Parse duration string "MM:SS" or "HH:MM:SS" to minutes
 const parseDuration = (s: string): number | null => {
     if (!s) return null;
     const p = s.split(':').map(Number);
     let val = 0;
+    if (p.length === 1) val = p[0];
     if (p.length === 2) val = p[0] + p[1] / 60;
     if (p.length === 3) val = p[0] * 60 + p[1] + p[2] / 60;
 
