@@ -48,8 +48,15 @@ export function ChatInterface({
     onOpenSettings, onOpenProfile, isEmbedded = false
 }: ChatInterfaceProps) {
     // Use messagesEndRef if provided, distinct from bottomRef for backward compat
-    const ref = bottomRef || messagesEndRef;
+    const internalRef = React.useRef<HTMLDivElement>(null);
+    const ref = bottomRef || messagesEndRef || internalRef;
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        if (isEmbedded && ref && 'current' in ref && ref.current) {
+            ref.current.scrollIntoView({ behavior: 'auto' });
+        }
+    }, [messages, isEmbedded, ref]);
     return (
         <div className={`flex flex-col relative w-full h-full min-h-0 ${isEmbedded ? '' : 'flex-1 md:min-w-[500px]'}`}>
             {/* Header - Hidden if embedded */}

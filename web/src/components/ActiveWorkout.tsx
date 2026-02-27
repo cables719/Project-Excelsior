@@ -383,7 +383,7 @@ export function ActiveWorkout({
                     )}
 
                     {state === 'rest' && (
-                        <div className="flex flex-col h-full max-w-lg mx-auto">
+                        <div className="flex flex-col h-full w-full max-w-3xl mx-auto">
                             <div className="flex-1 flex flex-col items-center justify-center space-y-8">
                                 <h3 className="text-2xl font-bold text-zinc-500">Rest</h3>
                                 <div className="text-9xl font-black tracking-tight font-mono text-emerald-400 tabular-nums">
