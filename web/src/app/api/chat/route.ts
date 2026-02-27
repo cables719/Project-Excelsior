@@ -1,7 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
-import { fetchContext, DataContext, fetchCoachNotes, appendCoachNote } from '@/lib/data';
+import { fetchContext, DataContext, fetchCoachNotes, appendCoachNote, overwriteCoachNotes } from '@/lib/data';
 import { getClaraSystemPrompt } from '@/lib/persona';
 import { getRecentHistory, appendExchange } from '@/lib/memory';
 import { getServerSession } from "next-auth/next";
@@ -87,13 +87,15 @@ ${systemOverride ? `### CRITICAL OVERRIDE INSTRUCTION\n${systemOverride}\n\n` : 
 ### COACH NOTES TOOL
 You can save private notes to yourself by including [COACH_NOTE: your note here] anywhere in your response.
 These notes will be saved and shown to you in future conversations — the user will NOT see them.
-Use this sparingly for important reminders like:
-- User mentioned an injury or limitation
-- A personal milestone or life event they shared
-- Training preferences you discovered
-- Something you want to follow up on next session
-Do NOT save routine observations. Only save things you genuinely want to remember.
-Consistency: Before saving a note, check YOUR PERSONAL NOTES above. If similar information is already there, do not save it again.
+Use this sparingly for important reminders.
+
+If your notes are getting too long or redundant, you can completely rewrite them using this format:
+<UPDATE_COACH_NOTES>
+- Condensed Note 1
+- Condensed Note 2
+</UPDATE_COACH_NOTES>
+This will DELETE all your previous notes and REPLACE them with the new list you provide. 
+Do NOT save routine observations. Consistency: Before saving a note, check YOUR PERSONAL NOTES above. If similar information is already there, do not save it again.
 `;
 
     // 3. Generate Response (Non-Streaming)
@@ -118,19 +120,43 @@ Consistency: Before saving a note, check YOUR PERSONAL NOTES above. If similar i
 
         // Parse and save coach notes (strip from visible response)
         let cleanedText = text;
+
+        // Parse update coach notes block
+        const updateRegex = /<UPDATE_COACH_NOTES>([\s\S]*?)<\/UPDATE_COACH_NOTES>/;
+        const updateMatch = updateRegex.exec(cleanedText);
+
+        let shouldOverwriteNotes = false;
+        let newNotesList: string[] = [];
+
+        if (updateMatch) {
+            shouldOverwriteNotes = true;
+            newNotesList = updateMatch[1]
+                .split('\n')
+                .map(n => n.replace(/^-\s*/, '').trim())
+                .filter(n => n.length > 0);
+            cleanedText = cleanedText.replace(updateRegex, '').trim();
+        }
+
         const noteRegex = /\[COACH_NOTE:\s*(.+?)\]/g;
         const foundNotes: string[] = [];
         let match;
-        while ((match = noteRegex.exec(text)) !== null) {
+        while ((match = noteRegex.exec(cleanedText)) !== null) {
             foundNotes.push(match[1].trim());
         }
-        cleanedText = text.replace(noteRegex, '').trim();
+        cleanedText = cleanedText.replace(noteRegex, '').trim();
 
         // Save notes in background (don't block response)
-        if (foundNotes.length > 0 && config?.sheetId) {
-            Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId))).catch(err => {
-                console.error('[API] Failed to save coach notes:', err);
-            });
+        if (config?.sheetId) {
+            if (shouldOverwriteNotes) {
+                const finalNotes = [...newNotesList, ...foundNotes];
+                overwriteCoachNotes(finalNotes, config.sheetId).catch(err => {
+                    console.error('[API] Failed to overwrite coach notes:', err);
+                });
+            } else if (foundNotes.length > 0) {
+                Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId))).catch(err => {
+                    console.error('[API] Failed to save coach notes:', err);
+                });
+            }
         }
 
         // Log to Sheets

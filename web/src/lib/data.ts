@@ -451,3 +451,37 @@ export async function fetchCoachNotes(sheetId: string): Promise<string[]> {
         return [];
     }
 }
+
+export async function overwriteCoachNotes(notes: string[], sheetId: string): Promise<void> {
+    try {
+        const { auth } = await getAuth(sheetId);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Clear existing notes
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId: sheetId,
+            range: 'CoachNotes!A2:B5000',
+        });
+
+        if (notes.length === 0) return;
+
+        // Write new notes
+        const date = new Date().toLocaleString('en-US');
+        const values = notes.map(n => {
+            let text = n.trim();
+            text = text.replace(/^\[.*?\]\s*/, '').trim();
+            return [date, text];
+        }).filter(n => n[1]);
+
+        if (values.length > 0) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: sheetId,
+                range: 'CoachNotes!A2',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values },
+            });
+        }
+    } catch (err) {
+        console.error('[Data] Failed to overwrite coach notes:', err);
+    }
+}
