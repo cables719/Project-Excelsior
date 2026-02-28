@@ -35,8 +35,8 @@ export async function POST(req: Request) {
     Return ONLY a raw JSON object (no markdown, no backticks) with this structure:
     {
         "reasoning": "Brief explanation of how you calculated the totals involved (mentioning visual cues if applicable)",
-        "calories": number,
-        "protein": number,
+        "calories": number (whole number only),
+        "protein": number (whole number only),
         "item_name": "Short descriptive summary"
     }
     `;

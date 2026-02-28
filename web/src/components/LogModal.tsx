@@ -90,6 +90,7 @@ export function LogModal({ isOpen, onClose, type, onSave, preferences, lifts = [
 
         // Explicit Overrides
         if (lower.includes('homemade') && lower.includes('shake')) return 18;
+        if (lower.includes('yogurt') || lower.includes('yoghurt')) return null;
 
         // Keywords
         if (lower.includes('shake') || lower.includes('smoothie')) return 12;
