@@ -18,6 +18,11 @@ for /f "usebackq tokens=1* delims==" %%a in ("web\.env.local") do (
         REM Remove quotes if present
         set "val=!val:"=!"
         
+        REM PROD OVERRIDES
+        if "!key!"=="NEXTAUTH_URL" (
+            set "val=https://fitsync-web-911277083046.us-central1.run.app"
+        )
+        
         REM Build the env-vars string
         if "!ENV_VARS!"=="" (
             set "ENV_VARS=!key!=!val!"
