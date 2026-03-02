@@ -200,8 +200,8 @@ export function ActiveWorkout({
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8">
-            <div className="w-full max-w-4xl mx-auto bg-zinc-950 border border-zinc-800 rounded-3xl h-[90vh] flex flex-col overflow-hidden relative shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 md:p-8">
+            <div className="w-full max-w-4xl mx-auto bg-zinc-950 md:border md:border-zinc-800 md:rounded-3xl h-[100dvh] md:h-[90vh] flex flex-col overflow-hidden relative md:shadow-2xl animate-in zoom-in-95">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl shrink-0">
                     <div>
@@ -222,7 +222,7 @@ export function ActiveWorkout({
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-24 md:pb-6">
 
                     {state === 'preview' && (
                         <div className="space-y-6 max-w-lg mx-auto pb-24">
@@ -281,7 +281,7 @@ export function ActiveWorkout({
                                                         newSets[idx].targetWeight = Math.max(0, newSets[idx].targetWeight - 5);
                                                         setActiveSets(newSets);
                                                     }}
-                                                    className="p-3 bg-zinc-800 rounded hover:bg-zinc-700 text-zinc-400 transition-colors">
+                                                    className="p-3 bg-zinc-800 rounded hover:bg-zinc-700 text-zinc-400 transition-all active:scale-95">
                                                     <Minus size={16} />
                                                 </button>
                                                 <div className="w-16 text-center font-bold text-lg">
@@ -293,7 +293,7 @@ export function ActiveWorkout({
                                                         newSets[idx].targetWeight += 5;
                                                         setActiveSets(newSets);
                                                     }}
-                                                    className="p-3 bg-zinc-800 rounded hover:bg-zinc-700 text-zinc-400 transition-colors">
+                                                    className="p-3 bg-zinc-800 rounded hover:bg-zinc-700 text-zinc-400 transition-all active:scale-95">
                                                     <Plus size={16} />
                                                 </button>
                                             </div>
@@ -368,7 +368,7 @@ export function ActiveWorkout({
                                     <div className="flex gap-4">
                                         <button
                                             onClick={() => setIsFailing(true)}
-                                            className="flex-1 py-6 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-bold text-xl hover:bg-red-500/20 transition-colors">
+                                            className="flex-1 py-6 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-bold text-xl hover:bg-red-500/20 transition-all active:scale-95">
                                             Failed
                                         </button>
                                         <button
@@ -397,7 +397,7 @@ export function ActiveWorkout({
                             </div>
 
                             {/* Integrated Chat for Rest Period */}
-                            <div className="flex-1 mt-8 bg-black/50 border border-zinc-800 rounded-t-3xl overflow-hidden flex flex-col relative w-full translate-y-6">
+                            <div className="flex-[2] mt-4 md:mt-8 bg-black/50 border border-zinc-800 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col relative w-full mb-2 md:mb-0 min-h-[300px]">
                                 <ChatInterface
                                     messages={messages}
                                     input={input}
@@ -460,10 +460,10 @@ export function ActiveWorkout({
 
                 {/* Sticky Action Footer for Preview */}
                 {state === 'preview' && (
-                    <div className="p-6 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-xl shrink-0 absolute bottom-0 left-0 right-0 z-10">
+                    <div className="p-6 pb-24 md:pb-6 border-t border-zinc-800 bg-zinc-950/80 backdrop-blur-xl shrink-0 absolute bottom-0 left-0 right-0 z-10">
                         <button
                             onClick={handleStart}
-                            className="w-full max-w-lg mx-auto block py-4 bg-emerald-500 text-black font-black text-lg rounded-xl hover:bg-emerald-400 transition-colors shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]">
+                            className="w-full max-w-lg mx-auto block py-4 bg-emerald-500 text-black font-black text-lg rounded-xl hover:bg-emerald-400 transition-all active:scale-95 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]">
                             START WORKOUT
                         </button>
                     </div>

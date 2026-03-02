@@ -12,7 +12,7 @@ import { formatDataContext } from '@/lib/format-context';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-    const { messages, clientDate, dataContext, systemOverride } = await req.json();
+    const { messages, clientDate, clientTime, dataContext, systemOverride } = await req.json();
 
     // 1. Fetch real-time data
     const session = await getServerSession(authOptions);
@@ -34,13 +34,11 @@ export async function POST(req: Request) {
     try {
         if (dataContext) {
             // [OPTIMIZATION] Use client-provided context (fresh & saves API call)
-            // console.log('[API] Using client-provided context.');
             rawData = dataContext;
 
             // [FIX] Always regenerate the string from the raw data to ensure freshness and formatting
             // This ignores the stale 'formattedString' sent by the client and rebuilds it fresh.
             contextString = formatDataContext(dataContext);
-
         } else if (config?.sheetId) {
             // [OPTIMIZATION] Reduced from 365 days to 7 days for fallback
             rawData = await fetchContext(7, config.sheetId);
@@ -49,7 +47,6 @@ export async function POST(req: Request) {
             // No sheet, no context.
             contextString = "[No personal data available. User has not linked a Google Sheet.]";
         }
-
 
         if (config?.sheetId) {
             // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
@@ -73,7 +70,24 @@ export async function POST(req: Request) {
         ? `\n### YOUR PERSONAL NOTES (Private — user cannot see these)\n${coachNotes.join('\n')}\n`
         : '';
 
-    const systemPrompt = `${getClaraSystemPrompt(rawData, clientDate)}
+    // Check if this is a silent PING_GREETING request to check for NEXT_LOGIN_START
+    if (messages.length === 1 && messages[0].content === 'PING_GREETING') {
+        const hasNextLoginStart = coachNotes.some(note => note.includes('NEXT_LOGIN_START'));
+
+        // If we have the tag, we should clear it from notes immediately so it doesn't trigger forever
+        if (hasNextLoginStart && config?.sheetId) {
+            const cleanedNotes = coachNotes.filter(note => !note.includes('NEXT_LOGIN_START'));
+            try {
+                await overwriteCoachNotes(cleanedNotes, config.sheetId);
+            } catch (err) {
+                console.error('[API] Failed to clear NEXT_LOGIN_START from notes:', err);
+            }
+        }
+
+        return Response.json({ shouldGreet: hasNextLoginStart });
+    }
+
+    const systemPrompt = `${getClaraSystemPrompt(rawData, clientDate, clientTime)}
 
 ### REAL-TIME DATA
 ${contextString}
@@ -96,6 +110,9 @@ If your notes are getting too long or redundant, you can completely rewrite them
 </UPDATE_COACH_NOTES>
 This will DELETE all your previous notes and REPLACE them with the new list you provide. 
 Do NOT save routine observations. Consistency: Before saving a note, check YOUR PERSONAL NOTES above. If similar information is already there, do not save it again.
+
+### CONVERSATION INITIATION (PROACTIVE)
+If you want to guarantee you start the conversation the NEXT time the user logs in, include \`[COACH_NOTE: NEXT_LOGIN_START]\` in your notes. The system will detect this and wake you up first next time. Only do this if you have something specific to follow up on.
 `;
 
     // 3. Generate Response (Non-Streaming)

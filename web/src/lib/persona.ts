@@ -143,7 +143,7 @@ function getNutritionContext(context: DataContext, clientDate?: string): string 
 
     const caloriesEaten = dailyLogs.reduce((acc, n) => acc + (parseInt(n.calories) || 0), 0);
     const proteinEaten = dailyLogs.reduce((acc, n) => acc + (parseInt(n.protein) || 0), 0);
-    const items = dailyLogs.map(n => n.item).join(', ');
+    const items = dailyLogs.map(n => `${n.item} (${n.calories}kcals, ${n.protein}g)`).join(', ');
 
     return `
 - **Today's Nutrition:**
@@ -152,7 +152,7 @@ function getNutritionContext(context: DataContext, clientDate?: string): string 
     `;
 }
 
-export function getClaraSystemPrompt(context: DataContext | null, clientDate?: string): string {
+export function getClaraSystemPrompt(context: DataContext | null, clientDate?: string, clientTime?: string): string {
     const profile = context?.userProfile || {};
     // Select Persona
     const mode = (profile.coachMode || 'clara') as keyof typeof COACH_PERSONAS;
@@ -198,6 +198,7 @@ export function getClaraSystemPrompt(context: DataContext | null, clientDate?: s
     const userBlock = `
 ### CURRENT DATE
 - **Today's Date:** ${displayDate}
+- **Current Time:** ${clientTime || 'Unknown'}
 
 ### USER CONTEXT (Injected Memory)
 - **Profile:** ${profile.age || 30}y/o ${profile.sex || 'M'}, ${profile.height || 'Unknown'}cm.

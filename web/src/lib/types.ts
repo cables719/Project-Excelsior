@@ -118,6 +118,8 @@ export interface UserProfile {
         showWellness?: boolean;
         hydrationTarget?: number; // oz
         enableGZCLP?: boolean;
+        coachCanInitiateChat?: boolean;
+        lastReportWeek?: string;
     };
     [key: string]: unknown;
 }

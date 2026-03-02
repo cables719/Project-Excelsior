@@ -426,6 +426,20 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHist
                                         />
                                     </label>
 
+                                    {/* Enable Coach Chat Initiation */}
+                                    <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">
+                                        <span className="text-sm font-bold text-white">Enable Coach Greetings</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.coachCanInitiateChat || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, coachCanInitiateChat: e.target.checked }
+                                            }))}
+                                            className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+
                                     {/* Enable Eagles Peak (Local Only) - Hidden unless admin or already enabled */}
                                     {(isAdmin || showEaglesPeak) && (
                                         <label className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer hover:border-zinc-700 transition-colors">

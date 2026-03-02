@@ -138,12 +138,25 @@ export default function Page() {
     const weekNum = Math.ceil(((now.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7);
     const weekKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 
-    const lastReportWeek = localStorage.getItem('excelsior_report_week');
+    const lastReportWeek = dataContext.userProfile?.preferences?.lastReportWeek;
     if (lastReportWeek === weekKey) return; // Already sent this week
 
     // Compute structured stats and fire the trigger invisibly
     const stats = getWeeklyStats(dataContext);
-    localStorage.setItem('excelsior_report_week', weekKey);
+
+    // Optimistically update context to prevent re-fire
+    if (dataContext.userProfile) {
+      if (!dataContext.userProfile.preferences) {
+        dataContext.userProfile.preferences = {};
+      }
+      dataContext.userProfile.preferences.lastReportWeek = weekKey;
+      // Background save to Sheets
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataContext.userProfile),
+      }).catch(err => console.error("Failed to save week tracker to profile:", err));
+    }
 
     const triggerPrompt = `SYSTEM_EVENT: WEEKLY_REPORT_TRIGGER
 Context: The user has logged in. It is Sunday (or a requested report).
@@ -166,7 +179,11 @@ INSTRUCTIONS:
    - Mention "Compliance" (Days logged / 7).
 5. **The Vibes & Notes**:
    - Look at the "highlights" list in the JSON. If the user mentioned "PR", "Win", or "Hard", mention it!
-   - Keep the tone hype. If volume is high (>10k), celebrate "The Grind".`;
+   - Keep the tone hype. If volume is high (>10k), celebrate "The Grind".
+6. **Looking Ahead (Weekly Goal)**:
+   - At the end of your report, inquire if the user wants to set a "weekly goal" or focus for the upcoming week.
+   - Provide 1 or 2 brief, reasonable suggestions based on their recent data (e.g. "Want to aim for 3 lifting days?", "Want to focus on hitting your protein target?").
+   - VERY IMPORTANT: Tell them that if they reply with a goal, you will log it in your notes so you remember it for the week.`;
 
     // Send invisibly — don't show the trigger prompt in chat, only Clara's response
     setIsLoading(true);
@@ -176,6 +193,7 @@ INSTRUCTIONS:
       body: JSON.stringify({
         messages: [{ role: 'user', content: triggerPrompt }],
         clientDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        clientTime: now.toLocaleTimeString('en-US'),
         dataContext: dataContext,
       }),
     })
@@ -194,6 +212,90 @@ INSTRUCTIONS:
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataContext]);
+
+  // Create a local ref to ensure the logic only fires ONCE per fresh load,
+  // otherwise the effect loop will continuously fire when 'messages' updates.
+  const hasEvaluatedRef = useRef(false);
+
+  // --- Login Greeting Trigger ---
+  useEffect(() => {
+    if (!dataContext || messages.length > 0 || hasEvaluatedRef.current) return;
+    if (!dataContext.userProfile?.preferences?.coachCanInitiateChat) return;
+
+    // Mark as evaluated so we don't loop on re-renders
+    hasEvaluatedRef.current = true;
+
+    const now = new Date();
+    // Explicitly format the date so the AI doesn't get confused by standard locale strings
+    const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const month = now.toLocaleDateString('en-US', { month: 'long' });
+    const day = now.getDate();
+    const year = now.getFullYear();
+    const explicitDateStr = `${weekday}, ${month} ${day}, ${year}`;
+
+    const generateGreeting = (isForced: boolean) => {
+      const triggerPrompt = `SYSTEM_EVENT: USER_LOGIN.
+The user has just opened the app.
+Please start the conversation by greeting them warmly. 
+Do NOT simply list out their data from today or yesterday; they can see the dashboard themselves.
+Instead, check your personal notes (if any) and see if there is something specific you wanted to ask them about.
+If there's nothing specific in your notes, ask an engaging open-ended question about how they are doing with their fitness, diet, or life in general to get the conversation started.`;
+
+      setIsLoading(true);
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: triggerPrompt }],
+          clientDate: explicitDateStr,
+          clientTime: now.toLocaleTimeString('en-US'),
+          dataContext: dataContext,
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          const reportMsg: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: data.role === 'assistant' ? data.content : data.text,
+          };
+          setMessages([reportMsg]);
+        })
+        .catch(err => {
+          console.error('Greeting trigger failed:', err);
+        })
+        .finally(() => setIsLoading(false));
+    };
+
+    const checkAndGreet = async () => {
+      let forceGreet = false;
+      try {
+        // Invisible check for NEXT_LOGIN_START in notes
+        const pingRes = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: 'PING_GREETING' }],
+            clientDate: explicitDateStr,
+            clientTime: now.toLocaleTimeString('en-US'),
+            dataContext: dataContext,
+          }),
+        });
+        const pingData = await pingRes.json();
+        if (pingData.shouldGreet) forceGreet = true;
+      } catch (e) {
+        console.error("Ping greeting check failed", e);
+      }
+
+      const randomRoll = Math.random();
+      if (forceGreet || randomRoll < 0.25) {
+        generateGreeting(forceGreet);
+      }
+    };
+
+    checkAndGreet();
+
+  }, [dataContext, messages.length]);
 
   const handleStartWorkout = () => {
     // Predict the next workout based on history
@@ -377,6 +479,7 @@ Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep respo
         body: JSON.stringify({
           messages: newMessages,
           clientDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+          clientTime: new Date().toLocaleTimeString('en-US'),
           dataContext: dataContext,
           systemOverride: overrideStr
         }),

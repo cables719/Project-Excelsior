@@ -15,8 +15,8 @@ All foundational work is done: Google Sheets backend, Gemini chat integration, C
 
 ## 🔧 Active: Tech Debt & Refactoring
 
-- [ ] **`appendToSheet()` helper**: Extract duplicate boilerplate from the 7 append functions in `data.ts` (~200 lines saved).
-- [ ] **Delete dead `fetchUserProfile()`**: Unused function in `data.ts` — `fetchContext()` already does this work.
+- [x] **`appendToSheet()` helper**: Extract duplicate boilerplate from the 7 append functions in `data.ts` (~200 lines saved).
+- [x] **Delete dead `fetchUserProfile()`**: Unused function in `data.ts` — `fetchContext()` already does this work.
 - [ ] **Dashboard Decomposition**: Split ~908-line `Dashboard.tsx` into tab-specific sub-components (requires safety commit first).
 - [ ] **State Management**: Extract 15+ `useState` calls in `page.tsx` into `useDashboardData` hook (requires safety commit first).
 - [ ] **Type Safety**: Remove remaining `any` types in `DashboardProps`, graph data, and log handlers.

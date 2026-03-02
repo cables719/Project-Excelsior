@@ -159,7 +159,7 @@ export function ChatInterface({
             </div>
 
             {/* Input Area */}
-            <div className={`${isEmbedded ? 'p-4' : 'px-4 md:px-8 pt-4 pb-24 md:pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent'}`}>
+            <div className={`${isEmbedded ? 'p-4 pb-[max(1rem,env(safe-area-inset-bottom))]' : 'px-4 md:px-8 pt-4 pb-24 md:pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent'}`}>
                 <div className="max-w-4xl mx-auto">
                     {selectedImage && (
                         <div className="mb-2 relative inline-block">
