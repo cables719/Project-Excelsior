@@ -385,8 +385,8 @@ export async function appendNutrition(data: Nutrition, sheetIdOverride?: string)
     ], { sheetIdOverride });
 }
 
-export async function appendFeedback(content: string, sheetIdOverride?: string): Promise<void> {
-    const date = new Date().toLocaleString('en-US');
+export async function appendFeedback(content: string, sheetIdOverride?: string, timestamp?: string): Promise<void> {
+    const date = timestamp || new Date().toLocaleString('en-US');
     await appendToSheet('Feedback', 'A:B', [
         [date, content]
     ], { sheetIdOverride, autoCreate: true });
@@ -411,7 +411,7 @@ export async function appendWellness(data: WellnessLog, sheetId: string): Promis
 }
 
 // --- Coach Notes (Clara's personal memory) ---
-export async function appendCoachNote(note: string, sheetId: string): Promise<void> {
+export async function appendCoachNote(note: string, sheetId: string, timestamp?: string): Promise<void> {
     const existing = await fetchCoachNotes(sheetId);
     const cleanedNote = note.trim();
 
@@ -427,7 +427,7 @@ export async function appendCoachNote(note: string, sheetId: string): Promise<vo
         return;
     }
 
-    const date = new Date().toLocaleString('en-US');
+    const date = timestamp || new Date().toLocaleString('en-US');
     await appendToSheet('CoachNotes', 'A:B', [
         [date, cleanedNote]
     ], { sheetIdOverride: sheetId, autoCreate: true, headers: [['Date', 'Note']] });
@@ -452,7 +452,7 @@ export async function fetchCoachNotes(sheetId: string): Promise<string[]> {
     }
 }
 
-export async function overwriteCoachNotes(notes: string[], sheetId: string): Promise<void> {
+export async function overwriteCoachNotes(notes: string[], sheetId: string, timestamp?: string): Promise<void> {
     try {
         const { auth } = await getAuth(sheetId);
         const sheets = google.sheets({ version: 'v4', auth });
@@ -466,7 +466,7 @@ export async function overwriteCoachNotes(notes: string[], sheetId: string): Pro
         if (notes.length === 0) return;
 
         // Write new notes
-        const date = new Date().toLocaleString('en-US');
+        const date = timestamp || new Date().toLocaleString('en-US');
         const values = notes.map(n => {
             let text = n.trim();
             text = text.replace(/^\[.*?\]\s*/, '').trim();

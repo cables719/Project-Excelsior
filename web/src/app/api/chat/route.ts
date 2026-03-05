@@ -78,7 +78,8 @@ export async function POST(req: Request) {
         if (hasNextLoginStart && config?.sheetId) {
             const cleanedNotes = coachNotes.filter(note => !note.includes('NEXT_LOGIN_START'));
             try {
-                await overwriteCoachNotes(cleanedNotes, config.sheetId);
+                const timestamp = (clientDate && clientTime) ? `${clientDate}, ${clientTime}` : undefined;
+                await overwriteCoachNotes(cleanedNotes, config.sheetId, timestamp);
             } catch (err) {
                 console.error('[API] Failed to clear NEXT_LOGIN_START from notes:', err);
             }
@@ -164,13 +165,14 @@ If you want to guarantee you start the conversation the NEXT time the user logs 
 
         // Save notes in background (don't block response)
         if (config?.sheetId) {
+            const timestamp = (clientDate && clientTime) ? `${clientDate}, ${clientTime}` : undefined;
             if (shouldOverwriteNotes) {
                 const finalNotes = [...newNotesList, ...foundNotes];
-                overwriteCoachNotes(finalNotes, config.sheetId).catch(err => {
+                overwriteCoachNotes(finalNotes, config.sheetId, timestamp).catch(err => {
                     console.error('[API] Failed to overwrite coach notes:', err);
                 });
             } else if (foundNotes.length > 0) {
-                Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId))).catch(err => {
+                Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId, timestamp))).catch(err => {
                     console.error('[API] Failed to save coach notes:', err);
                 });
             }
