@@ -352,8 +352,8 @@ If there's nothing specific in your notes, ask an engaging open-ended question a
       else if (last.bodyFat) setAvgBF(parseFloat(last.bodyFat));
     }
 
-    // Graph Data (Last 60 days)
-    const graphD = processedPoints.slice(-60).map((log: any) => ({
+    // Graph Data (All Historical Data)
+    const graphD = processedPoints.map((log: any) => ({
       date: log.date,
       weight: parseFloat(log.weight),
       bodyFat: log.bodyFat ? parseFloat(log.bodyFat) : null,

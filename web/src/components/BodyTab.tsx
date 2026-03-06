@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Scale, Plus } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, Scatter, CartesianGrid } from 'recharts';
 import { CustomTooltip } from './ui/Tooltips';
+import { aggregateByWeek } from '../lib/analytics';
 
 interface BodyTabProps {
     graphData: any[];
@@ -10,6 +11,41 @@ interface BodyTabProps {
 }
 
 export function BodyTab({ graphData, preferences, onOpenLogModal }: BodyTabProps) {
+    const [timeRange, setTimeRange] = useState<'1M' | '3M' | '6M' | 'ALL'>('1M');
+
+    // Load saved preference on mount
+    React.useEffect(() => {
+        const saved = localStorage.getItem('bodyTab_timeRange');
+        if (saved && (['1M', '3M', '6M', 'ALL'] as const).includes(saved as any)) {
+            setTimeRange(saved as '1M' | '3M' | '6M' | 'ALL');
+        }
+    }, []);
+
+    // Save preference on change
+    const handleTimeRangeChange = (range: '1M' | '3M' | '6M' | 'ALL') => {
+        setTimeRange(range);
+        localStorage.setItem('bodyTab_timeRange', range);
+    };
+
+    const processedData = useMemo(() => {
+        if (!graphData || graphData.length === 0) return [];
+
+        switch (timeRange) {
+            case '1M':
+                return graphData.slice(-30);
+            case '3M':
+                return graphData.slice(-90);
+            case '6M':
+                return aggregateByWeek(graphData.slice(-180));
+            case 'ALL':
+                return aggregateByWeek(graphData);
+            default:
+                return graphData.slice(-30);
+        }
+    }, [graphData, timeRange]);
+
+    const isAggregated = timeRange === '6M' || timeRange === 'ALL';
+
     return (
         <>
             {/* Action Buttons: Weigh-in */}
@@ -31,11 +67,30 @@ export function BodyTab({ graphData, preferences, onOpenLogModal }: BodyTabProps
                 </button>
             </div>
 
+            {/* Time Range Filter */}
+            <div className="flex justify-start gap-2 mb-4 bg-zinc-900/50 p-1 rounded-xl w-fit border border-zinc-800/50">
+                {(['1M', '3M', '6M', 'ALL'] as const).map(range => (
+                    <button
+                        key={range}
+                        onClick={() => handleTimeRangeChange(range)}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${timeRange === range
+                            ? 'bg-zinc-800 text-white shadow-sm'
+                            : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                    >
+                        {range}
+                    </button>
+                ))}
+            </div>
+
             {/* GRAPH 1: Weight */}
             <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 h-64 relative animate-in fade-in zoom-in-95">
-                <div className="absolute top-4 left-6 text-[10px] font-bold text-zinc-500 uppercase">Weight Trend (Lbs)</div>
+                <div className="absolute top-4 left-6 flex flex-col z-10 bg-zinc-900/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Weight Trend (Lbs)</span>
+                    {isAggregated && <span className="text-[9px] text-zinc-400 italic mt-0.5">Showing Weekly Averages</span>}
+                </div>
                 <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={graphData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                    <ComposedChart data={processedData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                         <CartesianGrid vertical={false} stroke="#27272a" />
                         <XAxis dataKey="date" hide />
                         <YAxis domain={['auto', 'auto']} orientation="left" tick={{ fill: '#52525b', fontSize: 10 }} tickLine={false} axisLine={false} />
@@ -49,9 +104,12 @@ export function BodyTab({ graphData, preferences, onOpenLogModal }: BodyTabProps
             {/* GRAPH 2: Body Fat */}
             {!preferences?.hideBodyFat && (
                 <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-6 h-64 relative animate-in fade-in zoom-in-95 mt-4">
-                    <div className="absolute top-4 left-6 text-[10px] font-bold text-zinc-500 uppercase">Body Fat % Trend</div>
+                    <div className="absolute top-4 left-6 flex flex-col z-10 bg-zinc-900/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Body Fat % Trend</span>
+                        {isAggregated && <span className="text-[9px] text-zinc-400 italic mt-0.5">Showing Weekly Averages</span>}
+                    </div>
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={graphData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                        <ComposedChart data={processedData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                             <CartesianGrid vertical={false} stroke="#27272a" />
                             <XAxis dataKey="date" hide />
                             <YAxis domain={['auto', 'auto']} orientation="left" tick={{ fill: '#52525b', fontSize: 10 }} tickLine={false} axisLine={false} />

@@ -318,3 +318,62 @@ export function calculateNetCalories(tdee: number, caloriesIn: number, activityB
     const budget = includeBurnInBudget ? tdee + activityBurn : tdee;
     return Math.round(budget - caloriesIn);
 }
+
+/**
+ * Aggregates daily data points into weekly averages for long-term graphs.
+ * Preserves the first date of the week as the label.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function aggregateByWeek(data: any[]): any[] {
+    if (!data || data.length === 0) return [];
+
+    // Sort ascending
+    const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const result = [];
+    let currentWeek: any[] = [];
+    let weekStart = new Date(sorted[0].date).getTime();
+    const MS_IN_WEEK = 7 * 86400000;
+
+    for (const point of sorted) {
+        const pointDate = new Date(point.date).getTime();
+
+        // If we crossed into a new 7-day window, process the old one
+        if (pointDate - weekStart >= MS_IN_WEEK) {
+            if (currentWeek.length > 0) {
+                result.push(averageCurrentWeek(currentWeek));
+            }
+            // Reset for next week
+            currentWeek = [point];
+            weekStart = pointDate;
+        } else {
+            currentWeek.push(point);
+        }
+    }
+
+    // Push the final partial week
+    if (currentWeek.length > 0) {
+        result.push(averageCurrentWeek(currentWeek));
+    }
+
+    return result;
+}
+
+// Helper for the above
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function averageCurrentWeek(weekData: any[]): any {
+    const avg = (key: string) => {
+        const valid = weekData.filter(d => d[key] !== null && d[key] !== undefined && !isNaN(parseFloat(d[key])));
+        if (valid.length === 0) return null;
+        const sum = valid.reduce((acc, curr) => acc + parseFloat(curr[key]), 0);
+        return parseFloat((sum / valid.length).toFixed(1)); // Keep it somewhat precise
+    };
+
+    return {
+        date: weekData[0].date, // Use the start date of the week
+        weight: avg('weight'),
+        bodyFat: avg('bodyFat'),
+        weightAvg: avg('weightAvg'),
+        bodyFatAvg: avg('bodyFatAvg')
+    };
+}
