@@ -342,7 +342,7 @@ export async function fetchContext(daysToFetch = 365, sheetIdOverride?: string, 
         weighIns: recentWeighIns,
         lifts: recentLifts,
         cardio: recentCardio,
-        nutrition: allNutrition.slice(-30), // Reduce from 100 to 30
+        nutrition: allNutrition.slice(-300), // Increased from 30 to 300 to ensure stats have enough history
         eaglesPeakLogs: eaglesPeakLogs.slice(-10),
         hydrationLogs,
         wellnessLogs,
