@@ -178,7 +178,7 @@ export function RecentActivity({ activeGraph, weighIns, lifts, cardio, nutrition
                                                 {/* NOTES COLUMN */}
                                                 <td className="p-3 align-middle w-auto text-left">
                                                     <div className="relative group flex justify-start w-full">
-                                                        <div className="text-[11px] text-zinc-600 italic truncate max-w-[150px] cursor-help hover:text-zinc-400 transition-colors">
+                                                        <div className="text-[11px] text-zinc-600 italic truncate max-w-[150px] cursor-default hover:text-zinc-400 transition-colors">
                                                             {item.notes}
                                                         </div>
                                                         {/* Custom Dark Tooltip */}

@@ -39,7 +39,7 @@ export const NoteTooltip = ({ text, index, widthClass }: { text: string, index: 
 
     return (
         <div className="relative group/note flex justify-start w-full">
-            <div className={`text-left text-[11px] text-zinc-600 italic truncate cursor-help hover:text-zinc-400 transition-colors ${widthClass || 'max-w-[150px]'}`}>
+            <div className={`text-left text-[11px] text-zinc-600 italic truncate cursor-default hover:text-zinc-400 transition-colors ${widthClass || 'max-w-[150px]'}`}>
                 {text}
             </div>
 
