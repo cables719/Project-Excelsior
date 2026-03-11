@@ -41,6 +41,11 @@ interface DashboardProps {
     onLogHydration?: (amount: number) => Promise<void>;
     onLogWellness?: (mood: number, energy: number, notes: string) => Promise<void>;
 
+    // Blueprint Props
+    onSuggestBlueprint?: (constraints: string) => void;
+    suggestedWorkout?: any;
+    isSuggestingWorkout?: boolean;
+
     // Deprecated / unused props can be removed or kept as optional/any for compatibility
     // keeping them loose for now to prevent strict breakages if parent passes them
     [key: string]: any;
@@ -51,7 +56,8 @@ export function Dashboard({
     onOpenLogModal, onStartWorkout,
     netCalories, caloriesIn, proteinIn, proteinTarget, activityBurn, filteredActivity, preferences,
     lifts = [], eaglesPeakLogs = [], cardio = [], weighIns = [], nutrition = [],
-    hydrationLogs = [], wellnessLogs = [], onLogHydration = async () => { }, onLogWellness = async () => { }
+    hydrationLogs = [], wellnessLogs = [], onLogHydration = async () => { }, onLogWellness = async () => { },
+    onSuggestBlueprint, suggestedWorkout, isSuggestingWorkout
 }: DashboardProps) {
 
     const [activeGraph, setActiveGraph] = React.useState<'biometrics' | 'nutrition' | 'exercise' | 'eagles-peak' | 'wellness'>('biometrics');
@@ -189,6 +195,9 @@ export function Dashboard({
                                 preferences={preferences}
                                 onOpenLogModal={onOpenLogModal}
                                 onStartWorkout={onStartWorkout}
+                                onSuggestBlueprint={onSuggestBlueprint}
+                                suggestedWorkout={suggestedWorkout}
+                                isSuggestingWorkout={isSuggestingWorkout}
                             />
                         ) : activeGraph === 'eagles-peak' ? (
                             <EaglesPeakTab eaglesPeakLogs={eaglesPeakLogs} onOpenLogModal={onOpenLogModal} />

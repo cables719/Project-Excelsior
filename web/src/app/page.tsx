@@ -40,6 +40,10 @@ export default function Page() {
   const [activeWorkoutPlan, setActiveWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [activeWorkoutState, setActiveWorkoutState] = useState<ActiveWorkoutState | null>(null);
 
+  // Blueprint State
+  const [suggestedWorkout, setSuggestedWorkout] = useState<any>(null);
+  const [isSuggestingWorkout, setIsSuggestingWorkout] = useState(false);
+
   // Data State
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
   const [lifts, setLifts] = useState<Lift[]>([]);
@@ -500,6 +504,36 @@ Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep respo
     }
   };
 
+  const handleSuggestBlueprint = async (constraints: string) => {
+    if (!dataContext || !dataContext.userProfile?.workoutBlueprint) return;
+    
+    setIsSuggestingWorkout(true);
+    setSuggestedWorkout(null);
+
+    try {
+        const response = await fetch('/api/blueprint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                blueprint: dataContext.userProfile.workoutBlueprint,
+                constraints,
+                lifts,
+                clientDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+            }),
+        });
+
+        if (!response.ok) throw new Error('Failed to generate workout');
+
+        const data = await response.json();
+        setSuggestedWorkout(data);
+    } catch (error) {
+        console.error('Blueprint Error:', error);
+        toast.error("Failed to generate a workout plan.");
+    } finally {
+        setIsSuggestingWorkout(false);
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -739,6 +773,11 @@ Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep respo
               wellnessLogs={dataContext?.wellnessLogs || []}
               onLogHydration={handleLogHydration}
               onLogWellness={handleLogWellness}
+
+              // [NEW] Blueprint Props
+              onSuggestBlueprint={handleSuggestBlueprint}
+              suggestedWorkout={suggestedWorkout}
+              isSuggestingWorkout={isSuggestingWorkout}
             />
           </div>
 

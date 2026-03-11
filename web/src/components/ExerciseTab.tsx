@@ -1,5 +1,5 @@
-import React from 'react';
-import { Dumbbell, Heart, Play, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Dumbbell, Heart, Play, Plus, Map, Sparkles, Loader2, MessageSquare, RefreshCw } from 'lucide-react';
 import { Trophy, TrendingUp } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { Lift } from '@/lib/types';
@@ -13,11 +13,15 @@ interface ExerciseTabProps {
     preferences?: any;
     onOpenLogModal: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
     onStartWorkout?: () => void;
+    onSuggestBlueprint?: (constraints: string) => void;
+    suggestedWorkout?: any;
+    isSuggestingWorkout?: boolean;
 }
 
-export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal, onStartWorkout }: ExerciseTabProps) {
+export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal, onStartWorkout, onSuggestBlueprint, suggestedWorkout, isSuggestingWorkout }: ExerciseTabProps) {
     const [selectedLift, setSelectedLift] = React.useState<string>('Squat');
     const [liftFilter, setLiftFilter] = React.useState<'all' | 'T1' | 'T2'>('all');
+    const [constraints, setConstraints] = useState('');
 
     const uniqueLifts = React.useMemo(() => {
         // Normalize all exercise names to canonical form, then deduplicate
@@ -59,7 +63,87 @@ export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal,
         <>
             {/* Lift & Cardio Buttons */}
             <div className="space-y-4 mb-8">
-                {preferences?.enableGZCLP && (
+                {preferences?.useCustomBlueprint ? (
+                    suggestedWorkout ? (
+                        <div className="bg-zinc-900/40 border border-emerald-500/20 rounded-2xl p-5 relative overflow-hidden group shadow-lg">
+                            <div className="flex items-center gap-2 mb-3 relative z-10">
+                                <Map size={18} className="text-emerald-500" />
+                                <h2 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Today's Mission</h2>
+                            </div>
+                            <div className="space-y-4 relative z-10">
+                                <div className="space-y-3 bg-black/40 p-4 rounded-xl border border-zinc-800">
+                                    <div className="flex items-center gap-2 text-white font-bold mb-2">
+                                        <Sparkles size={16} className="text-amber-400" />
+                                        {suggestedWorkout.title || "Suggested Workout"}
+                                    </div>
+                                    <p className="text-xs text-zinc-400 leading-relaxed mb-4">{suggestedWorkout.rationale}</p>
+                                    
+                                    <div className="space-y-2">
+                                        {suggestedWorkout.exercises?.map((ex: any, i: number) => (
+                                            <div key={i} className="flex justify-between items-center text-sm border-b border-zinc-800/50 pb-2 last:border-0 last:pb-0">
+                                                <span className="text-zinc-200 font-medium">{ex.name}</span>
+                                                <span className="text-emerald-400 font-mono text-xs bg-emerald-500/10 px-2 py-1 rounded">{ex.reps}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text"
+                                        value={constraints}
+                                        onChange={(e) => setConstraints(e.target.value)}
+                                        placeholder="Add comments & regenerate..."
+                                        className="flex-1 bg-black/40 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && onSuggestBlueprint) {
+                                                onSuggestBlueprint(constraints);
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => onSuggestBlueprint?.(constraints)}
+                                        disabled={isSuggestingWorkout}
+                                        className="bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 w-10 h-[34px] rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                                        title="Regenerate Workout"
+                                    >
+                                        {isSuggestingWorkout ? <Loader2 size={16} className="animate-spin text-emerald-400" /> : <RefreshCw size={14} className="text-emerald-400" />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-zinc-900/40 border border-emerald-500/20 p-4 rounded-2xl flex flex-col gap-4 transition-all">
+                            <button
+                                onClick={() => onSuggestBlueprint?.(constraints)}
+                                disabled={isSuggestingWorkout}
+                                className="w-full flex items-center justify-between group transition-all disabled:opacity-50"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        {isSuggestingWorkout ? <Loader2 size={20} className="animate-spin text-emerald-400" /> : <Map size={20} className="text-emerald-400" />}
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="text-sm font-bold text-emerald-100">AI Workout Coach</h3>
+                                        <p className="text-[10px] text-emerald-400/80">{isSuggestingWorkout ? 'Consulting blueprint...' : 'Generate today’s mission'}</p>
+                                    </div>
+                                </div>
+                                <Sparkles size={20} className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors" />
+                            </button>
+                            <input 
+                                type="text"
+                                value={constraints}
+                                onChange={(e) => setConstraints(e.target.value)}
+                                placeholder="Any special requests? (e.g., 'Sore knees', 'Only 30 mins')"
+                                className="bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500/50 w-full"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && onSuggestBlueprint) {
+                                        onSuggestBlueprint(constraints);
+                                    }
+                                }}
+                            />
+                        </div>
+                    )
+                ) : preferences?.enableGZCLP && (
                     <button
                         onClick={onStartWorkout}
                         className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 p-4 rounded-2xl flex items-center justify-between group transition-all"

@@ -1,7 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
-import { fetchContext, DataContext, fetchCoachNotes, appendCoachNote, overwriteCoachNotes } from '@/lib/data';
+import { fetchContext, DataContext, fetchCoachNotes, appendCoachNote, overwriteCoachNotes, updateUserProfile } from '@/lib/data';
 import { getClaraSystemPrompt } from '@/lib/persona';
 import { getRecentHistory, appendExchange } from '@/lib/memory';
 import { getServerSession } from "next-auth/next";
@@ -163,6 +163,19 @@ If you want to guarantee you start the conversation the NEXT time the user logs 
         }
         cleanedText = cleanedText.replace(noteRegex, '').trim();
 
+        // Parse blueprint updates
+        const blueprintRegex = /<UPDATE_BLUEPRINT>([\s\S]*?)<\/UPDATE_BLUEPRINT>/;
+        const blueprintMatch = blueprintRegex.exec(cleanedText);
+        
+        let shouldUpdateBlueprint = false;
+        let newBlueprintText = '';
+
+        if (blueprintMatch) {
+            shouldUpdateBlueprint = true;
+            newBlueprintText = blueprintMatch[1].trim();
+            cleanedText = cleanedText.replace(blueprintRegex, '').trim();
+        }
+
         // Save notes in background (don't block response)
         if (config?.sheetId) {
             const timestamp = (clientDate && clientTime) ? `${clientDate}, ${clientTime}` : undefined;
@@ -174,6 +187,13 @@ If you want to guarantee you start the conversation the NEXT time the user logs 
             } else if (foundNotes.length > 0) {
                 Promise.all(foundNotes.map(note => appendCoachNote(note, config.sheetId, timestamp))).catch(err => {
                     console.error('[API] Failed to save coach notes:', err);
+                });
+            }
+
+            if (shouldUpdateBlueprint && rawData?.userProfile) {
+                rawData.userProfile.workoutBlueprint = newBlueprintText;
+                updateUserProfile(rawData.userProfile, config.sheetId).catch(err => {
+                    console.error('[API] Failed to update blueprint:', err);
                 });
             }
         }

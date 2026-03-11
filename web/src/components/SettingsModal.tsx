@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '@/lib/types';
-import { X, Save, Calculator } from 'lucide-react';
+import { X, Save, Calculator, Map } from 'lucide-react';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -273,6 +273,23 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHist
                                             placeholder="e.g. 'I want to bench 225lbs', 'Run a 5k under 25 min', 'Lift 4x a week'..."
                                         />
                                     </div>
+                                    {/* Full Width: Custom Workout Plan */}
+                                    <div className="col-span-2 pt-2">
+                                        <label className="flex items-center justify-between text-[10px] text-zinc-400 mb-1 uppercase tracking-wider font-bold">
+                                            <span>Workout Plan</span>
+                                            {formData.preferences?.useCustomBlueprint && <span className="text-emerald-500">Enabled</span>}
+                                        </label>
+                                        {formData.preferences?.useCustomBlueprint ? (
+                                            <textarea
+                                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500/50 outline-none min-h-[120px]"
+                                                value={formData.workoutBlueprint || ''}
+                                                onChange={e => handleChange('workoutBlueprint', e.target.value)}
+                                                placeholder="Define your custom workout plan schedule, rules, and logic here. The AI coach will use this to generate your daily workouts when requested."
+                                            />
+                                        ) : (
+                                            <p className="text-[9px] text-zinc-500 mt-1">Requires "Enable Custom Workout Plan" to be toggled on in the Layout tab.</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             {/* Activity & Metabolism */}
@@ -437,6 +454,20 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHist
                                                 preferences: { ...prev.preferences, coachCanInitiateChat: e.target.checked }
                                             }))}
                                             className="accent-purple-500 w-4 h-4"
+                                        />
+                                    </label>
+
+                                    {/* Enable Custom Workout Plan */}
+                                    <label className="flex items-center justify-between p-3 bg-black/40 border border-zinc-800/50 rounded-xl cursor-pointer hover:border-emerald-500/30 transition-colors group">
+                                        <span className="text-sm font-bold text-emerald-400">Enable Custom Workout Plan</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.preferences?.useCustomBlueprint || false}
+                                            onChange={e => setFormData(prev => ({
+                                                ...prev,
+                                                preferences: { ...prev.preferences, useCustomBlueprint: e.target.checked }
+                                            }))}
+                                            className="accent-emerald-500 w-4 h-4"
                                         />
                                     </label>
 

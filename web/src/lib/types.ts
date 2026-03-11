@@ -107,6 +107,7 @@ export interface UserProfile {
     userAvatar?: string;
     customCoachName?: string;
     customCoachAvatar?: string;
+    workoutBlueprint?: string;
 
     // New Preferences
     preferences?: {
@@ -118,6 +119,7 @@ export interface UserProfile {
         showWellness?: boolean;
         hydrationTarget?: number; // oz
         enableGZCLP?: boolean;
+        useCustomBlueprint?: boolean;
         coachCanInitiateChat?: boolean;
         lastReportWeek?: string;
     };
