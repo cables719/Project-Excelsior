@@ -71,8 +71,10 @@ export default function Page() {
   // Context for AI
   const [dataContext, setDataContext] = useState<DataContext | null>(null);
 
-  // REFS for scrolling
+  // REFS for scrolling and guard triggers
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasTriggeredSundayReportRef = useRef(false);
+  const hasTriggeredGreetingRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -143,7 +145,11 @@ export default function Page() {
     const weekKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 
     const lastReportWeek = dataContext.userProfile?.preferences?.lastReportWeek;
-    if (lastReportWeek === weekKey) return; // Already sent this week
+    if (lastReportWeek === weekKey || hasTriggeredSundayReportRef.current) return; // Already sent this week
+
+    // Mark as triggered immediately
+    hasTriggeredSundayReportRef.current = true;
+    hasTriggeredGreetingRef.current = true; // Prevent greeting if report is firing
 
     // Compute structured stats and fire the trigger invisibly
     const stats = getWeeklyStats(dataContext);
@@ -217,17 +223,13 @@ INSTRUCTIONS:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataContext]);
 
-  // Create a local ref to ensure the logic only fires ONCE per fresh load,
-  // otherwise the effect loop will continuously fire when 'messages' updates.
-  const hasEvaluatedRef = useRef(false);
-
   // --- Login Greeting Trigger ---
   useEffect(() => {
-    if (!dataContext || messages.length > 0 || hasEvaluatedRef.current) return;
+    if (!dataContext || messages.length > 0 || hasTriggeredGreetingRef.current) return;
     if (!dataContext.userProfile?.preferences?.coachCanInitiateChat) return;
 
     // Mark as evaluated so we don't loop on re-renders
-    hasEvaluatedRef.current = true;
+    hasTriggeredGreetingRef.current = true;
 
     const now = new Date();
     // Explicitly format the date so the AI doesn't get confused by standard locale strings
