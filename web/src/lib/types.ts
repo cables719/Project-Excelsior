@@ -108,6 +108,7 @@ export interface UserProfile {
     customCoachName?: string;
     customCoachAvatar?: string;
     workoutBlueprint?: string;
+    customSystemPrompt?: string;
 
     // New Preferences
     preferences?: {
