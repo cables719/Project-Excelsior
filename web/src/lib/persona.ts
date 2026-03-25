@@ -192,13 +192,15 @@ export function getClaraSystemPrompt(context: DataContext | null, clientDate?: s
     const weight = context.weighIns[context.weighIns.length - 1]?.weight || 'Unknown';
     const bf = context.weighIns[context.weighIns.length - 1]?.bodyFat || 'Unknown';
     const goalWeight = profile.goalWeight || 'Unknown';
-    const displayDate = clientDate || new Date().toLocaleDateString();
+    const displayDate = clientDate || "Unknown Date";
+    const displayTime = clientTime || "Unknown Time";
 
     // Construct the dynamic specific block
     const userBlock = `
-### CURRENT DATE
+### CURRENT DATE & TIME
 - **Today's Date:** ${displayDate}
-- **Current Time:** ${clientTime || 'Unknown'}
+- **Current Time:** ${displayTime}
+- **Context:** You are identifying the current moment to orient your greeting and advice.
 
 ### USER CONTEXT (Injected Memory)
 - **Profile:** ${profile.age || 30}y/o ${profile.sex || 'M'}, ${profile.height || 'Unknown'}cm.

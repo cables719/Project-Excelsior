@@ -170,6 +170,7 @@ export default function Page() {
 
     const triggerPrompt = `SYSTEM_EVENT: WEEKLY_REPORT_TRIGGER
 Context: The user has logged in. It is Sunday (or a requested report).
+**Current Time: ${now.toLocaleTimeString('en-US')} on ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}**
 Task: Generate a "Weekly Report Card" based on the following JSON stats.
 Tone: Supportive, enthusiastic, fun.
 Styles: Use Markdown. Use Emojis. Make it look like a receipt or a dashboard.
@@ -238,10 +239,13 @@ INSTRUCTIONS:
     const day = now.getDate();
     const year = now.getFullYear();
     const explicitDateStr = `${weekday}, ${month} ${day}, ${year}`;
+    const clientTime = now.toLocaleTimeString('en-US');
 
     const generateGreeting = (isForced: boolean) => {
       const triggerPrompt = `SYSTEM_EVENT: USER_LOGIN.
-The user has just opened the app.
+The user has just opened the app. 
+**Current Time: ${clientTime} on ${explicitDateStr}**
+
 Please start the conversation by greeting them warmly. 
 Do NOT simply list out their data from today or yesterday; they can see the dashboard themselves.
 Instead, check your personal notes (if any) and see if there is something specific you wanted to ask them about.
@@ -254,7 +258,7 @@ If there's nothing specific in your notes, ask an engaging open-ended question a
         body: JSON.stringify({
           messages: [{ role: 'user', content: triggerPrompt }],
           clientDate: explicitDateStr,
-          clientTime: now.toLocaleTimeString('en-US'),
+          clientTime: clientTime,
           dataContext: dataContext,
         }),
       })
@@ -283,7 +287,7 @@ If there's nothing specific in your notes, ask an engaging open-ended question a
           body: JSON.stringify({
             messages: [{ role: 'user', content: 'PING_GREETING' }],
             clientDate: explicitDateStr,
-            clientTime: now.toLocaleTimeString('en-US'),
+            clientTime: clientTime,
             dataContext: dataContext,
           }),
         });
