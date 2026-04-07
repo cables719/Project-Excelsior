@@ -225,6 +225,34 @@ export interface PersonalBest {
     date: string;
 }
 
+/**
+ * Returns a Set of composite keys identifying lifts that were the FIRST time
+ * a new weight record was set for that (exercise, repCount) scheme.
+ *
+ * Key format: "date|canonicalExercise|weight|reps|sets"
+ * Scans chronologically — re-achieving a prior max is NOT flagged.
+ * GZCLP-aware: T1 reps=3/2/1 and T2 reps=10/8/6 are each separate tracks.
+ */
+export function detectPRLiftKeys(lifts: Lift[]): Set<string> {
+    const sorted = [...lifts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const bestByScheme = new Map<string, number>();
+    const prKeys = new Set<string>();
+
+    for (const l of sorted) {
+        const w = parseFloat(l.weight) || 0;
+        if (w <= 0) continue;
+        const canonical = normalizeExerciseName(l.exercise);
+        const schemeKey = `${canonical}:${l.reps}`;
+        const prevBest = bestByScheme.get(schemeKey) ?? 0;
+
+        if (w > prevBest) {
+            bestByScheme.set(schemeKey, w);
+            prKeys.add(`${l.date}|${canonical}|${l.weight}|${l.reps}|${l.sets}`);
+        }
+    }
+    return prKeys;
+}
+
 export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBest | null> {
     const getBest = (canonicalName: string): PersonalBest | null => {
         const matches = lifts
@@ -237,7 +265,7 @@ export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBe
             const w = parseFloat(l.weight) || 0;
             const r = parseFloat(l.reps) || 0;
             const s = parseFloat(l.sets) || 0;
-            const e1rm = w * (1 + r / 30);
+            const e1rm = calculateE1RM(w, r); // Use shared helper — handles reps===1 edge case
             return {
                 exercise: l.exercise,
                 weight: w,
@@ -258,6 +286,36 @@ export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBe
         'OHP': getBest(CANONICAL_EXERCISES.OHP)
     };
 };
+
+export interface TestedOneRM {
+    weight: number;
+    date: string;
+}
+
+/**
+ * Finds lifts explicitly marked as 1RM tests (notes contain "1rm", reps=1).
+ * Returns per-exercise history sorted chronologically, so the last entry is
+ * the most recent test and delta vs the previous test is easy to compute.
+ */
+export function getTestedOneRepMaxes(lifts: Lift[]): Record<string, TestedOneRM[]> {
+    const testLifts = lifts.filter(l =>
+        parseFloat(l.reps) === 1 &&
+        l.notes?.toLowerCase().includes('1rm')
+    );
+
+    const result: Record<string, TestedOneRM[]> = {};
+    for (const l of testLifts) {
+        const canonical = normalizeExerciseName(l.exercise);
+        if (!result[canonical]) result[canonical] = [];
+        result[canonical].push({ weight: parseFloat(l.weight) || 0, date: l.date });
+    }
+
+    // Sort each exercise chronologically so last entry = most recent test
+    for (const key of Object.keys(result)) {
+        result[key].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+    return result;
+}
 
 
 /**

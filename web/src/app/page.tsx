@@ -280,17 +280,8 @@ If there's nothing specific in your notes, ask an engaging open-ended question a
     const checkAndGreet = async () => {
       let forceGreet = false;
       try {
-        // Invisible check for NEXT_LOGIN_START in notes
-        const pingRes = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: 'PING_GREETING' }],
-            clientDate: explicitDateStr,
-            clientTime: clientTime,
-            dataContext: dataContext,
-          }),
-        });
+        // Lightweight check — only fetches coach notes, no history, no LLM
+        const pingRes = await fetch('/api/greeting-check');
         const pingData = await pingRes.json();
         if (pingData.shouldGreet) forceGreet = true;
       } catch (e) {
@@ -305,7 +296,8 @@ If there's nothing specific in your notes, ask an engaging open-ended question a
 
     checkAndGreet();
 
-  }, [dataContext, messages.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataContext]);
 
   const handleStartWorkout = () => {
     // Predict the next workout based on history

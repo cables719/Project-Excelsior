@@ -192,6 +192,7 @@ export function Dashboard({
                             <ExerciseTab
                                 lifts={lifts}
                                 currentWeight={currentWeight}
+                                avgWeight={avgWeight}
                                 preferences={preferences}
                                 onOpenLogModal={onOpenLogModal}
                                 onStartWorkout={onStartWorkout}

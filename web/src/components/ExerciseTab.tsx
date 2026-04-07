@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Dumbbell, Heart, Play, Plus, Map, Sparkles, Loader2, MessageSquare, RefreshCw } from 'lucide-react';
-import { Trophy, TrendingUp } from 'lucide-react';
+import { Dumbbell, Heart, Play, Plus, Map, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { Lift } from '@/lib/types';
-import { processLifts, aggregateDailyBest, determinePersonalBests } from '@/lib/analytics';
+import { processLifts, aggregateDailyBest } from '@/lib/analytics';
 import { WilksGauge } from './WilksGauge';
 import { normalizeExerciseName } from '@/lib/exercise-aliases';
 
 interface ExerciseTabProps {
     lifts: Lift[];
     currentWeight: string;
+    avgWeight?: number;
     preferences?: any;
     onOpenLogModal: (type: 'weigh-in' | 'lift' | 'cardio' | 'nutrition' | 'eagles-peak') => void;
     onStartWorkout?: () => void;
@@ -18,7 +18,7 @@ interface ExerciseTabProps {
     isSuggestingWorkout?: boolean;
 }
 
-export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal, onStartWorkout, onSuggestBlueprint, suggestedWorkout, isSuggestingWorkout }: ExerciseTabProps) {
+export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOpenLogModal, onStartWorkout, onSuggestBlueprint, suggestedWorkout, isSuggestingWorkout }: ExerciseTabProps) {
     const [selectedLift, setSelectedLift] = React.useState<string>('Squat');
     const [liftFilter, setLiftFilter] = React.useState<'all' | 'T1' | 'T2'>('all');
     const [constraints, setConstraints] = useState('');
@@ -48,16 +48,7 @@ export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal,
         return aggregateDailyBest(filtered);
     }, [lifts, selectedLift, liftFilter]);
 
-    // Trophy Room Data
-    const trophies = React.useMemo(() => {
-        const bests = determinePersonalBests(lifts);
-        return [
-            { label: 'Squat', lift: bests['Squat'] },
-            { label: 'Bench', lift: bests['Bench'] },
-            { label: 'Deadlift', lift: bests['Deadlift'] },
-            { label: 'OHP', lift: bests['OHP'] }
-        ];
-    }, [lifts]);
+
 
     return (
         <>
@@ -283,42 +274,11 @@ export function ExerciseTab({ lifts, currentWeight, preferences, onOpenLogModal,
             </div>
 
             {/* Wilks Gauge Row */}
-            <div className="h-auto">
-                <WilksGauge currentWeight={parseFloat(currentWeight) || 180} lifts={lifts} />
+            <div className="h-auto mb-10">
+                <WilksGauge currentWeight={avgWeight || parseFloat(currentWeight) || 0} lifts={lifts} />
             </div>
 
-            {/* Trophy Room */}
-            <div className="bg-zinc-900/40 backdrop-blur-md border border-amber-500/20 rounded-2xl p-5 relative overflow-hidden group mb-10 shadow-lg shadow-black/20">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                    <Trophy size={80} className="text-amber-500 transform rotate-12" />
-                </div>
-                <div className="flex items-center gap-2 mb-4 relative z-10">
-                    <Trophy size={16} className="text-amber-500" />
-                    <h2 className="text-xs font-bold text-amber-500 uppercase tracking-widest">Trophy Room (All-Time Best e1RM)</h2>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
-                    {trophies.map((t) => (
-                        <div key={t.label} className="flex flex-col relative group/item">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase mb-0.5">{t.label}</span>
-                            {t.lift ? (
-                                <div>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-xl font-black text-white tracking-tight text-shadow-glow">{Math.round(t.lift.e1rm)}</span>
-                                        <span className="text-[10px] text-zinc-500 font-medium">e1RM</span>
-                                    </div>
-                                    <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                                        {t.lift.sets}x{t.lift.reps} @ <span className="text-zinc-300 font-bold">{t.lift.weight}</span> lbs
-                                        <div className="text-zinc-600 text-[9px] mt-0.5">{new Date(t.lift.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' })}</div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <span className="text-sm text-zinc-700 font-medium">--</span>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
         </>
     );
 }

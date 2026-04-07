@@ -307,6 +307,25 @@ export function LogForms({
                                 <input type="number" placeholder="Lbs" className="bg-[#0a0a0a] border border-zinc-800 rounded-lg px-2 py-3 text-sm text-center text-white focus:border-emerald-500/50 focus:outline-none transition-all" value={liftForm.weight} onChange={e => setLiftForm({ ...liftForm, weight: e.target.value })} />
                             </div>
                             <input value={liftForm.notes} onChange={e => setLiftForm({ ...liftForm, notes: e.target.value })} className="w-full bg-[#0a0a0a] border border-zinc-800 rounded-lg px-3 py-3 text-sm focus:border-emerald-500/50 focus:outline-none transition-all" placeholder="Notes..." />
+                            <div className="flex gap-2 mt-1.5">
+                                {['Deload', '1RM Test'].map(tag => {
+                                    const isActive = liftForm.notes === tag;
+                                    return (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => setLiftForm({ ...liftForm, notes: isActive ? '' : tag })}
+                                            className={`text-[10px] px-2.5 py-1 rounded-full border transition-all ${
+                                                isActive
+                                                    ? 'bg-emerald-900/40 border-emerald-700/50 text-emerald-400'
+                                                    : 'bg-zinc-800/40 border-zinc-700/30 text-zinc-600 hover:text-zinc-400 hover:border-zinc-600'
+                                            }`}
+                                        >
+                                            {tag}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </>
                     )}
 

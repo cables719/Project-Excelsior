@@ -1,6 +1,8 @@
 import React from 'react';
-import { Activity, Scale, Dumbbell, Utensils, Mountain } from 'lucide-react';
+import { Activity, Scale, Dumbbell, Utensils, Mountain, Trophy } from 'lucide-react';
 import { Lift, EaglesPeakLog, HydrationLog, WellnessLog } from '@/lib/types';
+import { detectPRLiftKeys } from '@/lib/analytics';
+import { normalizeExerciseName } from '@/lib/exercise-aliases';
 
 interface RecentActivityProps {
     activeGraph: string;
@@ -14,6 +16,8 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ activeGraph, weighIns, lifts, cardio, nutrition, eaglesPeakLogs, hydrationLogs, wellnessLogs }: RecentActivityProps) {
+    // Scan all lifts chronologically — only first-time weight records earn a badge
+    const prKeys = React.useMemo(() => detectPRLiftKeys(lifts), [lifts]);
     return (
         <div className="space-y-6 pt-6 border-t border-zinc-800/50 pb-10">
             <div className="flex items-center gap-2 mb-2">
@@ -132,13 +136,23 @@ export function RecentActivity({ activeGraph, weighIns, lifts, cardio, nutrition
                                                             )}
                                                         </span>
                                                     )}
-                                                    {item.type === 'lift' && (
-                                                        <span>
-                                                            <span className="text-emerald-400">{item.weight}lbs</span>
-                                                            <span className="text-zinc-600 mx-1">/</span>
-                                                            <span className="text-zinc-400">{item.sets}x{item.reps}</span>
-                                                        </span>
-                                                    )}
+                                                    {item.type === 'lift' && (() => {
+                                                        const canonical = normalizeExerciseName(item.exercise);
+                                                        const key = `${item.date}|${canonical}|${item.weight}|${item.reps}|${item.sets}`;
+                                                        const isPR = prKeys.has(key);
+                                                        return (
+                                                            <span>
+                                                                <span className="text-emerald-400">{item.weight}lbs</span>
+                                                                <span className="text-zinc-600 mx-1">/</span>
+                                                                <span className="text-zinc-400">{item.sets}x{item.reps}</span>
+                                                                {isPR && (
+                                                                    <span title="Rep-scheme PR">
+                                                                        <Trophy size={10} className="text-amber-400 inline ml-1.5 mb-0.5" />
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                     {item.type === 'weigh-in' && (
                                                         <span>
                                                             <span className="text-purple-400">{item.weight}lb</span>

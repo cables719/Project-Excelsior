@@ -70,23 +70,6 @@ export async function POST(req: Request) {
         ? `\n### YOUR PERSONAL NOTES (Private — user cannot see these)\n${coachNotes.join('\n')}\n`
         : '';
 
-    // Check if this is a silent PING_GREETING request to check for NEXT_LOGIN_START
-    if (messages.length === 1 && messages[0].content === 'PING_GREETING') {
-        const hasNextLoginStart = coachNotes.some(note => note.includes('NEXT_LOGIN_START'));
-
-        // If we have the tag, we should clear it from notes immediately so it doesn't trigger forever
-        if (hasNextLoginStart && config?.sheetId) {
-            const cleanedNotes = coachNotes.filter(note => !note.includes('NEXT_LOGIN_START'));
-            try {
-                const timestamp = (clientDate && clientTime) ? `${clientDate}, ${clientTime}` : undefined;
-                await overwriteCoachNotes(cleanedNotes, config.sheetId, timestamp);
-            } catch (err) {
-                console.error('[API] Failed to clear NEXT_LOGIN_START from notes:', err);
-            }
-        }
-
-        return Response.json({ shouldGreet: hasNextLoginStart });
-    }
 
     const systemPrompt = `${getClaraSystemPrompt(rawData, clientDate, clientTime)}
 
