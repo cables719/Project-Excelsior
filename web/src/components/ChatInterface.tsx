@@ -94,7 +94,7 @@ export function ChatInterface({
             )}
 
             {/* Messages */}
-            <div className={`flex-1 overflow-y-auto ${isEmbedded ? 'p-4' : 'pt-24 pb-24 md:pb-8 px-4 md:px-8'} scroll-smooth flex flex-col`}>
+            <div className={`flex-1 overflow-y-auto custom-scrollbar ${isEmbedded ? 'p-4' : 'pt-24 pb-24 md:pb-8 px-4 md:px-8'} scroll-smooth flex flex-col`}>
                 <div className="max-w-4xl mx-auto space-y-10 w-full flex-1 flex flex-col">
                     {messages.length === 0 && !isLoading && !isEmbedded && (
                         <div className="flex-1 flex flex-col items-center justify-center opacity-30 space-y-4 animate-pulse">

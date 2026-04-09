@@ -52,7 +52,7 @@ export function BodyTab({ graphData, preferences, onOpenLogModal }: BodyTabProps
             <div className="space-y-6 mb-8">
                 <button
                     onClick={() => onOpenLogModal('weigh-in')}
-                    className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                    className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/30 p-4 rounded-2xl flex items-center justify-between group transition-all"
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">

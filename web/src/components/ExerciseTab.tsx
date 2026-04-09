@@ -157,7 +157,7 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
                 <div className="flex gap-4">
                     <button
                         onClick={() => onOpenLogModal('lift')}
-                        className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                        className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between group transition-all"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -173,7 +173,7 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
                     {!preferences?.hideCardio && (
                         <button
                             onClick={() => onOpenLogModal('cardio')}
-                            className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                            className="flex-1 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/30 p-4 rounded-2xl flex items-center justify-between group transition-all"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">

@@ -20,7 +20,7 @@ export function EaglesPeakTab({ eaglesPeakLogs, onOpenLogModal }: EaglesPeakTabP
                 <div className="space-y-6 mb-6">
                     <button
                         onClick={() => onOpenLogModal('eagles-peak')}
-                        className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                        className="w-full bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-600/30 p-4 rounded-2xl flex items-center justify-between group transition-all"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-amber-600/10 flex items-center justify-center group-hover:scale-110 transition-transform">

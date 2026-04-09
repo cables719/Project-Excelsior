@@ -96,8 +96,8 @@ export function Dashboard({
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h1 className="text-3xl font-black text-white tracking-tighter">DASHBOARD</h1>
-                            <p className="text-zinc-500 text-xs font-medium mt-1">
+                            <h1 className="text-xl font-black bg-gradient-to-r from-zinc-100 to-zinc-500 bg-clip-text text-transparent tracking-widest uppercase">DASHBOARD</h1>
+                            <p className="text-zinc-500 text-[10px] font-bold mt-1 uppercase tracking-wider">
                                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                             </p>
                         </div>
@@ -130,10 +130,10 @@ export function Dashboard({
                     {/* GRAPH SECTION - TABBED */}
                     <div className="space-y-4">
                         {/* Tab Switcher */}
-                        <div className="flex gap-4 border-b border-zinc-800/50 pb-2 mb-6">
+                        <div className="flex gap-2 border-b border-zinc-800/50 pb-3 mb-6">
                             <button
                                 onClick={() => setActiveGraph('biometrics')}
-                                className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'biometrics' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeGraph === 'biometrics' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50'}`}
                             >
                                 Body
                             </button>
@@ -141,7 +141,7 @@ export function Dashboard({
                             {!preferences?.hideLifts && (
                                 <button
                                     onClick={() => setActiveGraph('exercise')}
-                                    className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'exercise' ? 'text-emerald-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeGraph === 'exercise' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-sm' : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 border border-transparent'}`}
                                 >
                                     Exercise
                                 </button>
@@ -150,7 +150,7 @@ export function Dashboard({
                             {!preferences?.hideNutrition && (
                                 <button
                                     onClick={() => setActiveGraph('nutrition')}
-                                    className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'nutrition' ? 'text-amber-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeGraph === 'nutrition' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm' : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 border border-transparent'}`}
                                 >
                                     Food
                                 </button>
@@ -159,7 +159,7 @@ export function Dashboard({
                             {showEaglesPeak && (
                                 <button
                                     onClick={() => setActiveGraph('eagles-peak')}
-                                    className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'eagles-peak' ? 'text-amber-600' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeGraph === 'eagles-peak' ? 'bg-amber-600/10 text-amber-600 border border-amber-600/20 shadow-sm' : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 border border-transparent'}`}
                                 >
                                     Peak
                                 </button>
@@ -168,7 +168,7 @@ export function Dashboard({
                             {preferences?.showWellness && (
                                 <button
                                     onClick={() => setActiveGraph('wellness')}
-                                    className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${activeGraph === 'wellness' ? 'text-blue-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeGraph === 'wellness' ? 'bg-blue-400/10 text-blue-400 border border-blue-400/20 shadow-sm' : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 border border-transparent'}`}
                                 >
                                     Wellness
                                 </button>
