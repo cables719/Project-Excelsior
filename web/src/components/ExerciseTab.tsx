@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Dumbbell, Heart, Play, Plus, Map, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { Dumbbell, Heart, Play, Plus, Map, Sparkles, Loader2, RefreshCw, Database } from 'lucide-react';
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { Lift } from '@/lib/types';
 import { processLifts, aggregateDailyBest } from '@/lib/analytics';
 import { WilksGauge } from './WilksGauge';
 import { normalizeExerciseName } from '@/lib/exercise-aliases';
+import { LiftArchiveModal } from './LiftArchiveModal';
 
 interface ExerciseTabProps {
     lifts: Lift[];
@@ -22,6 +23,7 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
     const [selectedLift, setSelectedLift] = React.useState<string>('Squat');
     const [liftFilter, setLiftFilter] = React.useState<'all' | 'T1' | 'T2'>('all');
     const [constraints, setConstraints] = useState('');
+    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
 
     const uniqueLifts = React.useMemo(() => {
         // Normalize all exercise names to canonical form, then deduplicate
@@ -177,13 +179,25 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
                                 <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Heart size={20} className="text-blue-500" />
                                 </div>
-                                <div className="text-left">
-                                    <h3 className="text-sm font-bold text-white">Log Cardio</h3>
-                                </div>
+                            <div className="text-left">
+                                <h3 className="text-sm font-bold text-white">Log Cardio</h3>
                             </div>
-                            <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
-                        </button>
+                        </div>
+                        <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                    </button>
                     )}
+                </div>
+
+                <div className="mt-4">
+                    <button
+                        onClick={() => setIsArchiveOpen(!isArchiveOpen)}
+                        className={`w-full ${isArchiveOpen ? 'bg-zinc-800' : 'bg-zinc-900/30'} hover:bg-zinc-800/50 border border-zinc-800 hover:border-emerald-500/30 p-3 rounded-xl flex items-center justify-center gap-2 group transition-all`}
+                    >
+                        <Database size={16} className={`${isArchiveOpen ? 'text-emerald-400' : 'text-emerald-500/70'} group-hover:text-emerald-400 transition-colors`} />
+                        <span className={`text-xs font-bold ${isArchiveOpen ? 'text-white' : 'text-zinc-400'} group-hover:text-emerald-100 transition-colors uppercase tracking-widest`}>
+                            {isArchiveOpen ? 'Close Iron Vault' : 'Open Iron Vault'}
+                        </span>
+                    </button>
                 </div>
             </div>
 
@@ -278,7 +292,7 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
                 <WilksGauge currentWeight={avgWeight || parseFloat(currentWeight) || 0} lifts={lifts} />
             </div>
 
-
+            <LiftArchiveModal isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} lifts={lifts} />
         </>
     );
 }
