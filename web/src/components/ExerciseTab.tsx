@@ -162,7 +162,7 @@ export function ExerciseTab({ lifts, currentWeight, avgWeight, preferences, onOp
                                 <Dumbbell size={20} className="text-emerald-500" />
                             </div>
                             <div className="text-left">
-                                <h3 className="text-sm font-bold text-white">Log Past Lift</h3>
+                                <h3 className="text-sm font-bold text-white">Log Lift</h3>
                             </div>
                         </div>
                         <Plus size={20} className="text-zinc-600 group-hover:text-white transition-colors" />

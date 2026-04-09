@@ -75,6 +75,7 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
         const pastLogs = history
             .filter(l => isMatch(l.exercise))
             .filter(l => detectTier(parseFloat(l.reps) || 0) === tier)
+            .filter(l => !l.notes?.toLowerCase().includes('deload') && !l.notes?.toLowerCase().includes('1rm test'))
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         let targetWeight = 45; // Empty bar default
@@ -119,7 +120,7 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
         if (normalizeExerciseName(ex) === CANONICAL_EXERCISES.PULLUPS) {
             const pullupLogs = history
                 .filter(l => matchesExercise(l.exercise, CANONICAL_EXERCISES.PULLUPS))
-                .filter(l => !l.notes?.toLowerCase().includes('deload'));
+                .filter(l => !l.notes?.toLowerCase().includes('deload') && !l.notes?.toLowerCase().includes('1rm test'));
 
             let repeatWeight = 0;
             if (pullupLogs.length > 0) {
