@@ -1,5 +1,5 @@
 import { Lift } from './types';
-import { detectTier } from './analytics';
+import { detectTier, parseLiftPerformance } from './analytics';
 import { CANONICAL_EXERCISES, matchesExercise, normalizeExerciseName } from './exercise-aliases';
 
 export interface WorkoutSet {
@@ -94,7 +94,7 @@ export function predictNextWorkout(history: Lift[]): WorkoutPlan {
             const lastSets = parseFloat(lastLog.sets) || 0;
             const lastReps = parseFloat(lastLog.reps) || 0;
 
-            const failed = lastLog.notes?.toLowerCase().includes('fail') || false;
+            const failed = parseLiftPerformance(lastLog).isFail;
 
             // Find current stage based on last logged REPS (sets can vary if they end early)
             currentStageIdx = progArray.findIndex(p => p.reps === lastReps);

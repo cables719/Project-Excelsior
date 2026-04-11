@@ -1,4 +1,5 @@
 import { DataContext, Lift, Cardio, Nutrition, WeighIn } from './types';
+import { parseLiftPerformance } from './analytics';
 
 export interface WeeklyStats {
     period: { start: string; end: string };
@@ -75,8 +76,11 @@ export const getWeeklyStats = (data: DataContext, requestDate: Date = new Date()
     // const weekWeighIns = data.weighIns.filter(x => isWithin(x.date, startDate, endDate));
 
     // 3. Aggregate Lifts
-    // Volume = Weight * Reps * Sets
-    const volume = weekLifts.reduce((acc, curr) => acc + (parseFloat(curr.weight) * parseFloat(curr.reps) * parseFloat(curr.sets) || 0), 0);
+    // Volume uses actual completed reps if available
+    const volume = weekLifts.reduce((acc, curr) => {
+        const perf = parseLiftPerformance(curr);
+        return acc + ((parseFloat(curr.weight) || 0) * perf.totalCompletedReps);
+    }, 0);
     const exercises = Array.from(new Set(weekLifts.map(l => l.exercise)));
 
     // Count Sessions (Unique Dates)

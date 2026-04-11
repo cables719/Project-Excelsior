@@ -139,6 +139,118 @@ export function detectTier(reps: number): Tier {
     return 'T3';
 }
 
+export interface LiftPerformance {
+    targetSets: number;
+    targetReps: number;
+    isFail: boolean;
+    maxCompletedReps: number;
+    totalCompletedReps: number;
+    isTestedOneRM: boolean;
+}
+
+export function parseLiftPerformance(lift: Lift): LiftPerformance {
+    const targetSets = parseFloat(lift.sets) || 0;
+    const targetReps = parseFloat(lift.reps) || 0;
+    let isFail = false;
+    let maxCompletedReps = targetReps;
+    let totalCompletedReps = targetSets * targetReps;
+    let isTestedOneRM = false;
+
+    if (!lift.notes) {
+        return { targetSets, targetReps, isFail, maxCompletedReps, totalCompletedReps, isTestedOneRM };
+    }
+
+    const notes = lift.notes.toLowerCase();
+    
+    if (notes.includes('1rm test') || notes.includes('1rm')) {
+        isTestedOneRM = true;
+    }
+
+    const isExplicitFail = notes.includes('fail') || notes.includes('miss');
+
+    // 1. Parse Active Mode
+    let activeModeMax = -1;
+    let activeModeTotal = -1;
+    let hasActiveMode = false;
+
+    const activeModeMatch = notes.match(/completed (\d+)(?:\/\d+)? on set (\d+)/i);
+    if (activeModeMatch) {
+        hasActiveMode = true;
+        const achievedOnFailSet = parseInt(activeModeMatch[1], 10);
+        const failSetNumber = parseInt(activeModeMatch[2], 10);
+        
+        if (failSetNumber > 1) {
+            activeModeMax = Math.max(targetReps, achievedOnFailSet);
+        } else {
+            activeModeMax = achievedOnFailSet;
+        }
+        activeModeTotal = ((failSetNumber - 1) * targetReps) + achievedOnFailSet;
+    }
+
+    // 2. Parse Manual Overrides
+    // Manual text is everything after a '|' if it exists, otherwise the whole string
+    const manualParts = lift.notes.split('|');
+    const manualText = manualParts.length > 1 ? manualParts[manualParts.length - 1] : manualParts[0];
+
+    let manualMax = -1;
+    let manualTotal = -1;
+    let hasManualSeq = false;
+
+    const manualClean = manualText.toLowerCase()
+        .replace(/\b(?:rpe\s*)\d+(?:\.\d+)?\b/g, '')        // RPE like "RPE 8"
+        .replace(/\b\d+\/10\b/g, '');                       // Ratings like 8/10
+
+    const seqRegex = /(?:\b|^)(\d+(?:[ \t/,-]+\d+)+)(?:\b|$)/g;
+    const matches = manualClean.match(seqRegex);
+    
+    if (matches) {
+        let bestSeq = '';
+        let maxLen = 0;
+        
+        for (const m of matches) {
+            const parts = m.split(/[ \t/,-]+/).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+            if (parts.length > 1 && parts.length >= maxLen) {
+                // Heuristic to skip exact 2-part dates (like 4/09) if they appear alone without fail text
+                if (parts.length === 2 && m.includes('/') && parts[0] <= 12 && parts[1] <= 31 && !notes.includes('fail')) {
+                    continue;
+                }
+                maxLen = parts.length;
+                bestSeq = m;
+            }
+        }
+
+        if (bestSeq) {
+            const parts = bestSeq.split(/[ \t/,-]+/).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+            hasManualSeq = true;
+            manualMax = Math.max(...parts);
+            manualTotal = parts.reduce((a, b) => a + b, 0);
+        }
+    }
+
+    if (isExplicitFail) {
+        isFail = true;
+        // Priority: Manual sequence > Active Mode > Implicit Fail
+        if (hasManualSeq) {
+            maxCompletedReps = manualMax;
+            totalCompletedReps = manualTotal;
+        } else if (hasActiveMode) {
+            maxCompletedReps = activeModeMax;
+            totalCompletedReps = activeModeTotal;
+        } else {
+            maxCompletedReps = 0;
+            totalCompletedReps = 0;
+        }
+    } else {
+        if (hasManualSeq && manualTotal < targetSets * targetReps) {
+            isFail = true;
+            maxCompletedReps = manualMax;
+            totalCompletedReps = manualTotal;
+        }
+    }
+
+    return { targetSets, targetReps, isFail, maxCompletedReps, totalCompletedReps, isTestedOneRM };
+}
+
 export interface LiftPoint {
     date: string;
     originalDate: string; // Keep full date for sorting
@@ -154,6 +266,7 @@ export function processLifts(lifts: Lift[], exerciseFilter: string): LiftPoint[]
         .filter(l => matchesExercise(l.exercise, exerciseFilter))
         .filter(l => !l.notes?.toLowerCase().includes('deload')) // Exclude deloads from graphs
         .map(l => {
+            const perf = parseLiftPerformance(l);
             // Handle "BW" or empty weight strings more gracefully
             let w = parseFloat(l.weight);
             if (isNaN(w)) {
@@ -165,17 +278,25 @@ export function processLifts(lifts: Lift[], exerciseFilter: string): LiftPoint[]
                 if (isNaN(w)) w = 0;
             }
 
-            const r = parseFloat(l.reps) || 0;
+            // We use targetReps for tier determination, so an attempted 6x2 still graphs as T1.
+            const tier = detectTier(perf.targetReps);
+            const actualReps = perf.maxCompletedReps;
+
+            // If actualReps is 0, they completely missed. E1RM string should reflect 0.
+            const e1rm = calculateE1RM(w, actualReps);
+
             return {
                 date: l.date.includes('/') ? l.date.split('/').slice(0, 2).join('/') : l.date,
                 originalDate: l.date,
                 weight: w,
-                reps: r,
-                e1rm: calculateE1RM(w, r),
-                tier: detectTier(r),
+                reps: actualReps,
+                e1rm,
+                tier,
                 exercise: l.exercise
             };
         })
+        // exclude completely failed points from creating 0's on the graph, reducing confusion
+        .filter(p => p.e1rm > 0)
         .sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime());
 }
 
@@ -239,15 +360,20 @@ export function detectPRLiftKeys(lifts: Lift[]): Set<string> {
     const prKeys = new Set<string>();
 
     for (const l of sorted) {
+        const perf = parseLiftPerformance(l);
+        if (perf.maxCompletedReps === 0) continue; // Skip completely failed lifts
+        
         const w = parseFloat(l.weight) || 0;
         if (w <= 0) continue;
         const canonical = normalizeExerciseName(l.exercise);
-        const schemeKey = `${canonical}:${l.reps}`;
+        
+        // PR tracked against what they *actually* did, so doing a heavy single replaces a single, not the intended double
+        const schemeKey = `${canonical}:${perf.maxCompletedReps}`;
         const prevBest = bestByScheme.get(schemeKey) ?? 0;
 
         if (w > prevBest) {
             bestByScheme.set(schemeKey, w);
-            prKeys.add(`${l.date}|${canonical}|${l.weight}|${l.reps}|${l.sets}`);
+            prKeys.add(`${l.date}|${canonical}|${l.weight}|${l.reps}|${l.sets}`); // Keep original reps/sets for the key string matching
         }
     }
     return prKeys;
@@ -262,19 +388,20 @@ export function determinePersonalBests(lifts: Lift[]): Record<string, PersonalBe
 
         // Sort by e1RM desc
         const sorted = matches.map(l => {
+            const perf = parseLiftPerformance(l);
             const w = parseFloat(l.weight) || 0;
-            const r = parseFloat(l.reps) || 0;
+            const r = perf.maxCompletedReps; // Use actual reps for best e1RM
             const s = parseFloat(l.sets) || 0;
             const e1rm = calculateE1RM(w, r); // Use shared helper — handles reps===1 edge case
             return {
                 exercise: l.exercise,
                 weight: w,
-                reps: r,
+                reps: r, // Can still return r so UI shows true max achieved if they failed
                 sets: s,
                 e1rm,
                 date: l.date
             };
-        }).sort((a, b) => b.e1rm - a.e1rm);
+        }).filter(p => p.e1rm > 0).sort((a, b) => b.e1rm - a.e1rm);
 
         return sorted[0];
     };
@@ -298,10 +425,10 @@ export interface TestedOneRM {
  * the most recent test and delta vs the previous test is easy to compute.
  */
 export function getTestedOneRepMaxes(lifts: Lift[]): Record<string, TestedOneRM[]> {
-    const testLifts = lifts.filter(l =>
-        parseFloat(l.reps) === 1 &&
-        l.notes?.toLowerCase().includes('1rm')
-    );
+    const testLifts = lifts.filter(l => {
+        const perf = parseLiftPerformance(l);
+        return perf.targetReps === 1 && perf.isTestedOneRM && perf.maxCompletedReps >= 1;
+    });
 
     const result: Record<string, TestedOneRM[]> = {};
     for (const l of testLifts) {
