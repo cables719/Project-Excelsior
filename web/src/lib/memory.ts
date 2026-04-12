@@ -20,7 +20,7 @@ async function getSheets(sheetIdOverride?: string) {
     };
 }
 
-export async function getRecentHistory(limit: number = 20, sheetIdOverride?: string): Promise<StoredMessage[]> {
+export async function getRecentHistory(limit: number = 20, offset: number = 0, sheetIdOverride?: string): Promise<StoredMessage[]> {
     try {
         const { sheets, sheetId } = await getSheets(sheetIdOverride);
 
@@ -33,7 +33,6 @@ export async function getRecentHistory(limit: number = 20, sheetIdOverride?: str
         if (!rows || rows.length === 0) return [];
 
         // Skip header if it exists (assuming Row 1 is header)
-        // We can just parse all and sort/slice
         // Format: [Timestamp, Role, Content]
         const history: StoredMessage[] = rows
             .map(row => ({
@@ -43,13 +42,27 @@ export async function getRecentHistory(limit: number = 20, sheetIdOverride?: str
             }))
             .filter(m => m.timestamp && m.content); // basic validation
 
-        return history.slice(-limit);
+        // slice from the end
+        // offset 0, limit 10 -> slice(-10)
+        // offset 10, limit 10 -> slice(-20, -10)
+        const start = -(limit + offset);
+        const end = offset === 0 ? undefined : -offset;
+        
+        // Handle case where limit+offset exceeds history length
+        if (Math.abs(start) > history.length) {
+            // If offset is already beyond length, return empty
+            if (offset >= history.length) return [];
+            // Otherwise return from 0 to -offset
+            return history.slice(0, end);
+        }
+
+        return history.slice(start, end);
     } catch (error) {
         console.error('Error reading memory from Sheets:', error);
-        // Fallback or empty if sheet doesn't exist yet
         return [];
     }
 }
+
 
 export async function appendExchange(userContent: string, assistantContent: string, sheetIdOverride?: string) {
     try {

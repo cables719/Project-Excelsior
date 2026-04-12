@@ -32,6 +32,11 @@ interface ChatInterfaceProps {
 
     // New optional prop for embedding inside other components like ActiveWorkout
     isEmbedded?: boolean;
+
+    // History Props
+    onLoadHistory?: () => void;
+    hasMoreHistory?: boolean;
+    isLoadingHistory?: boolean;
 }
 
 const AVATAR_MAP = {
@@ -45,7 +50,8 @@ export function ChatInterface({
     messages, input, setInput, isLoading, handleChatSubmit, bottomRef, messagesEndRef, coachMode = 'clara',
     userAvatar, coachAvatar, coachName,
     selectedImage, setSelectedImage, onImageSelect, onPaste,
-    onOpenSettings, onOpenProfile, isEmbedded = false
+    onOpenSettings, onOpenProfile, isEmbedded = false,
+    onLoadHistory, hasMoreHistory = false, isLoadingHistory = false
 }: ChatInterfaceProps) {
     // Use messagesEndRef if provided, distinct from bottomRef for backward compat
     const internalRef = React.useRef<HTMLDivElement>(null);
@@ -96,13 +102,33 @@ export function ChatInterface({
             {/* Messages */}
             <div className={`flex-1 overflow-y-auto custom-scrollbar ${isEmbedded ? 'p-4' : 'pt-24 pb-24 md:pb-8 px-4 md:px-8'} scroll-smooth flex flex-col`}>
                 <div className="max-w-4xl mx-auto space-y-10 w-full flex-1 flex flex-col">
-                    {messages.length === 0 && !isLoading && !isEmbedded && (
+                    {messages.length === 0 && !isLoading && !isEmbedded && !hasMoreHistory && (
                         <div className="flex-1 flex flex-col items-center justify-center opacity-30 space-y-4 animate-pulse">
                             <img src="/logo.png" alt="Logo" className="w-48 h-48 md:w-80 md:h-80 opacity-100" />
                             <p className="font-light tracking-wide text-lg">SYSTEM READY</p>
                         </div>
                     )}
-                    {messages.map(m => (
+
+                    {/* History Loader */}
+                    {hasMoreHistory && (
+                        <div className="flex justify-center py-4">
+                            <button
+                                onClick={onLoadHistory}
+                                disabled={isLoadingHistory}
+                                className="px-6 py-2 rounded-full border border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:border-zinc-700 transition-all text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isLoadingHistory ? (
+                                    <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent animate-spin rounded-full" />
+                                ) : (
+                                    <Activity size={14} className="text-emerald-500" />
+                                )}
+                                {messages.length === 0 ? "Display previous conversation" : "Load older messages"}
+                            </button>
+                        </div>
+                    )}
+                    {messages
+                        .filter(m => !m.content.startsWith('SYSTEM_EVENT:'))
+                        .map(m => (
                         <div key={m.id} className={`flex gap-6 items-start ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                             {/* Avatar */}
                             <div className="flex-shrink-0 mt-2">

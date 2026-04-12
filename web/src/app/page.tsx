@@ -44,6 +44,12 @@ export default function Page() {
   const [suggestedWorkout, setSuggestedWorkout] = useState<any>(null);
   const [isSuggestingWorkout, setIsSuggestingWorkout] = useState(false);
 
+  // History State
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const isPrependingRef = useRef(false);
+
   // Data State
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
   const [lifts, setLifts] = useState<Lift[]>([]);
@@ -81,6 +87,10 @@ export default function Page() {
   };
 
   useEffect(() => {
+    if (isPrependingRef.current) {
+      isPrependingRef.current = false;
+      return;
+    }
     scrollToBottom();
   }, [messages]);
 
@@ -502,6 +512,37 @@ Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep respo
     }
   };
 
+  const handleLoadHistory = async () => {
+    if (isLoadingHistory || !hasMoreHistory) return;
+
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/history?limit=10&offset=${historyOffset}`);
+      if (!response.ok) throw new Error('Failed to fetch history');
+      
+      const prevMessages: Message[] = await response.json();
+      
+      if (prevMessages.length < 10) {
+        setHasMoreHistory(false);
+      }
+
+      if (prevMessages.length > 0) {
+        isPrependingRef.current = true;
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniquePrev = prevMessages.filter(m => !existingIds.has(m.id));
+          return [...uniquePrev, ...prev];
+        });
+        setHistoryOffset(prev => prev + prevMessages.length);
+      }
+    } catch (e) {
+      console.error("Error loading history:", e);
+      toast.error("Failed to load history.");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   const handleSuggestBlueprint = async (constraints: string) => {
     if (!dataContext || !dataContext.userProfile?.workoutBlueprint) return;
     
@@ -737,6 +778,11 @@ Give brief, hyper-focused advice: form cues, hype, or quick coaching. Keep respo
               coachName={dataContext?.userProfile?.customCoachName}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenProfile={() => setIsProfileOpen(true)}
+
+              // History Props
+              onLoadHistory={handleLoadHistory}
+              hasMoreHistory={hasMoreHistory}
+              isLoadingHistory={isLoadingHistory}
             />
           </div>
 
