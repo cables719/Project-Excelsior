@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
         if (config?.sheetId) {
             // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
-            history = await getRecentHistory(30, config.sheetId);
+            history = await getRecentHistory(30, 0, config.sheetId);
         }
 
         // Fetch coach notes (Clara's personal memory)
