@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { getClaraSystemPrompt } from '@/lib/persona';
 import { DataContext, UserProfile } from '@/lib/types';
-import { ArrowLeft, RefreshCw, Copy } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Copy, Save, Check } from 'lucide-react';
 import Link from 'next/link';
+import { toast, Toaster } from 'react-hot-toast';
 
 export default function PersonaDebugPage() {
     // Sliders
@@ -13,9 +14,33 @@ export default function PersonaDebugPage() {
     // Context Toggles
     const [scenario, setScenario] = useState<'neutral' | 'pr' | 'missed' | 'overate'>('neutral');
     const [coachMode, setCoachMode] = useState<'clara' | 'cole' | 'atlas' | 'ember'>('clara');
+    const [customPrompt, setCustomPrompt] = useState('');
+    const [realProfile, setRealProfile] = useState<UserProfile | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Output
     const [promptText, setPromptText] = useState('');
+
+    // Load Real Profile
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                if (data.userProfile) {
+                    setRealProfile(data.userProfile);
+                    setCustomPrompt(data.userProfile.customSystemPrompt || '');
+                    setCoachMode(data.userProfile.coachMode || 'clara');
+                    if (data.userProfile.coachAttributes) {
+                        setAttributes(data.userProfile.coachAttributes);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile", err);
+            }
+        };
+        fetchProfile();
+    }, []);
 
     useEffect(() => {
         // Mock Data Context
@@ -28,7 +53,8 @@ export default function PersonaDebugPage() {
             goalWeight: 170,
             activityLevel: 1.55,
             coachMode: coachMode,
-            coachAttributes: attributes
+            coachAttributes: attributes,
+            customSystemPrompt: customPrompt
         };
 
         const mockLifts = scenario === 'pr'
@@ -56,10 +82,47 @@ export default function PersonaDebugPage() {
         const text = getClaraSystemPrompt(mockContext, new Date().toISOString());
         setPromptText(text);
 
-    }, [attributes, scenario, coachMode]);
+    }, [attributes, scenario, coachMode, customPrompt]);
+
+    const handleSave = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+        const toastId = toast.loading("Saving override to profile...");
+        try {
+            const finalProfile = {
+                ...realProfile,
+                customSystemPrompt: customPrompt,
+                coachMode: coachMode,
+                coachAttributes: attributes
+            };
+
+            const res = await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(finalProfile),
+            });
+
+            if (!res.ok) throw new Error("Failed to save");
+            
+            setRealProfile(finalProfile as UserProfile);
+            toast.success("Override saved to profile!", { id: toastId });
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to save to profile", { id: toastId });
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#050505] text-white font-sans p-8">
+            <Toaster position="top-right" toastOptions={{
+                style: {
+                    background: '#18181b',
+                    color: '#fff',
+                    border: '1px solid #27272a',
+                },
+            }} />
             <div className="max-w-6xl mx-auto space-y-8">
 
                 {/* Header */}
@@ -134,8 +197,42 @@ export default function PersonaDebugPage() {
                                 <option value="neutral">Neutral Day</option>
                                 <option value="pr">Hit a PR (Squat 315)</option>
                                 <option value="overate">Overate Pizza (+1500 cal)</option>
-                                <option value="missed">Missed Workouts (Empty Log)</option>
+                <option value="missed">Missed Workouts (Empty Log)</option>
                             </select>
+                        </div>
+
+                        {/* 4. Custom Override (Prepended) */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Custom Prompt Override</h3>
+                                {customPrompt && (
+                                    <div className="flex gap-4">
+                                        <button 
+                                            onClick={() => setCustomPrompt('')}
+                                            className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+                                        >
+                                            Clear
+                                        </button>
+                                        <button 
+                                            onClick={handleSave}
+                                            disabled={isSaving}
+                                            className="text-[10px] text-emerald-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
+                                        >
+                                            {isSaving ? <RefreshCw size={10} className="animate-spin" /> : <Save size={10} />}
+                                            Save to Profile
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <textarea
+                                value={customPrompt}
+                                onChange={(e) => setCustomPrompt(e.target.value)}
+                                placeholder="Prepend raw text to system prompt..."
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm focus:border-purple-500 outline-none h-32 resize-none custom-scrollbar"
+                            />
+                            <p className="text-[10px] text-zinc-500">
+                                This text is prepended to the generated prompt for testing. It does not overwrite the base persona.
+                            </p>
                         </div>
 
                     </div>

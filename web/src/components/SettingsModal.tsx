@@ -592,8 +592,15 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHist
                                     </div>
                                 </div>
 
-                                {(formData.customCoachName || formData.customCoachAvatar) && (
-                                    <div className="pt-2">
+                                <div className="grid grid-cols-1 gap-4 pt-2">
+                                    <a
+                                        href="/debug/persona"
+                                        className="w-full flex items-center justify-center gap-2 bg-purple-900/20 text-purple-200 border border-purple-500/30 font-bold py-3 rounded-xl hover:bg-purple-900/30 transition-colors text-xs uppercase tracking-widest"
+                                    >
+                                        Open Persona Lab
+                                    </a>
+
+                                    {(formData.customCoachName || formData.customCoachAvatar) && (
                                         <button
                                             onClick={() => setFormData(prev => ({
                                                 ...prev,
@@ -604,8 +611,8 @@ export function SettingsModal({ isOpen, onClose, currentProfile, onSave, hasHist
                                         >
                                             Reset Custom Coach
                                         </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
 
