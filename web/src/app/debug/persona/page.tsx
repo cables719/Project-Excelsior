@@ -196,8 +196,7 @@ export default function PersonaDebugPage() {
                 <option value="missed">Missed Workouts (Empty Log)</option>
                             </select>
                         </div>
-
-
+                    </div>
 
                     {/* Output Preview */}
                     <div className="md:col-span-2 flex flex-col h-[700px]">
