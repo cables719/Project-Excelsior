@@ -40,8 +40,8 @@ export async function POST(req: Request) {
             // This ignores the stale 'formattedString' sent by the client and rebuilds it fresh.
             contextString = formatDataContext(dataContext);
         } else if (config?.sheetId) {
-            // [OPTIMIZATION] Reduced from 365 days to 7 days for fallback
-            rawData = await fetchContext(7, config.sheetId);
+            // [OPTIMIZATION] Reduced from 7 days to 3 days for context limit
+            rawData = await fetchContext(3, config.sheetId);
             contextString = formatDataContext(rawData);
         } else {
             // No sheet, no context.
@@ -49,8 +49,8 @@ export async function POST(req: Request) {
         }
 
         if (config?.sheetId) {
-            // [OPTIMIZATION] Reduced from 1000 messages to 30 messages
-            history = await getRecentHistory(30, 0, config.sheetId);
+            // [OPTIMIZATION] Reduced from 30 messages to 10 messages
+            history = await getRecentHistory(10, 0, config.sheetId);
         }
 
         // Fetch coach notes (Clara's personal memory)
@@ -100,10 +100,10 @@ If you want to guarantee you start the conversation the NEXT time the user logs 
 `;
 
     // 3. Generate Response (Non-Streaming)
-    // Switching to 2.0-flash-lite (Stable Alias) -> Using 2.5 flash as before
+    // Switching to 2.0-flash-lite for cost efficiency
     try {
         const { text } = await generateText({
-            model: google('gemini-2.5-flash'),
+            model: google('gemini-2.0-flash-lite-preview-02-05'),
             system: systemPrompt,
             messages: messages.map((m: any) => {
                 if (m.role === 'user' && m.images && m.images.length > 0) {

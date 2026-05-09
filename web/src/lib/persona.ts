@@ -234,12 +234,5 @@ ${profile.workoutBlueprint || "No plan defined yet. You should help the user cre
 ` : ''}
 `;
 
-    const finalPrompt = `${identity}\n${COMMON_RULES}\n\n${userBlock}`;
-    
-    // Prepend custom system prompt if defined for testing/overrides
-    if (profile.customSystemPrompt) {
-        return `${profile.customSystemPrompt}\n\n${finalPrompt}`;
-    }
-
-    return finalPrompt;
+    return `${identity}\n${COMMON_RULES}\n\n${userBlock}`;
 }
