@@ -100,10 +100,10 @@ If you want to guarantee you start the conversation the NEXT time the user logs 
 `;
 
     // 3. Generate Response (Non-Streaming)
-    // Switching to 2.0-flash-lite for cost efficiency
+    // Switching to flash-lite for cost efficiency
     try {
         const { text } = await generateText({
-            model: google('gemini-2.0-flash-lite-preview-02-05'),
+            model: google('gemini-2.5-flash-lite'),
             system: systemPrompt,
             messages: messages.map((m: any) => {
                 if (m.role === 'user' && m.images && m.images.length > 0) {
