@@ -373,7 +373,10 @@ export function detectPRLiftKeys(lifts: Lift[]): Set<string> {
 
         if (w > prevBest) {
             bestByScheme.set(schemeKey, w);
-            prKeys.add(`${l.date}|${canonical}|${l.weight}|${l.reps}|${l.sets}`); // Keep original reps/sets for the key string matching
+            // Only flag as a PR if they actually achieved the target reps for at least one set
+            if (perf.maxCompletedReps >= perf.targetReps) {
+                prKeys.add(`${l.date}|${canonical}|${l.weight}|${l.reps}|${l.sets}`); // Keep original reps/sets for the key string matching
+            }
         }
     }
     return prKeys;
